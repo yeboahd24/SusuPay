@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
+import redis.asyncio as aioredis
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -70,3 +71,17 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     ) as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def flush_ussd_keys():
+    """Flush all ussd:* keys from Redis before each USSD test."""
+    r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        cursor = b"0"
+        while cursor:
+            cursor, keys = await r.scan(cursor=cursor, match="ussd:*", count=100)
+            if keys:
+                await r.delete(*keys)
+    finally:
+        await r.aclose()
