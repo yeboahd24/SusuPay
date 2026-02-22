@@ -71,7 +71,10 @@ async def send_otp(body: OTPSendRequest, db: AsyncSession = Depends(get_db)):
 
     await send_sms(body.phone, f"Your SusuPay code is {code}. Expires in 5 minutes.")
 
-    return OTPSendResponse()
+    from app.config import settings
+    return OTPSendResponse(
+        debug_code=code if settings.APP_DEBUG else None
+    )
 
 
 @router.post("/otp/verify", response_model=OTPVerifyResponse)

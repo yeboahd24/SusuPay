@@ -8,6 +8,7 @@ from app.dependencies import get_current_client, get_current_collector
 from app.models.client import Client
 from app.models.collector import Collector
 from app.schemas.transaction import (
+    ClientSMSSubmitRequest,
     ClientTransactionItem,
     ConfirmRequest,
     ParsedSMSResponse,
@@ -28,7 +29,9 @@ from app.services.transaction_service import (
     query_transaction,
     reject_transaction,
     submit_screenshot,
+    submit_screenshot_as_client,
     submit_sms,
+    submit_sms_as_client,
 )
 from app.workers.tasks import (
     notify_duplicate_task,
@@ -242,6 +245,107 @@ async def reject(
     return TransactionActionResponse(
         transaction_id=txn.id,
         status=txn.status,
+    )
+
+
+# --- Client Self-Submission Endpoints ---
+
+
+@router.post("/client/submit/sms", response_model=SubmitResponse)
+async def client_submit_sms_endpoint(
+    body: ClientSMSSubmitRequest,
+    client: Client = Depends(get_current_client),
+    db: AsyncSession = Depends(get_db),
+):
+    """Client submits their own payment proof by pasting MTN MoMo SMS text."""
+    if not await check_submission_rate_limit(client.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Submission rate limit exceeded. Maximum 5 per hour.",
+        )
+
+    try:
+        txn, parsed, validation = await submit_sms_as_client(db, client, body.sms_text)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    await increment_submission_count(client.id)
+
+    # Dispatch async notifications
+    if txn.status == "AUTO_REJECTED":
+        notify_duplicate_task.delay(client.push_token, client.phone)
+    elif txn.status == "PENDING":
+        # Notify collector about new submission
+        collector_obj = await db.get(Collector, client.collector_id)
+        if collector_obj:
+            notify_payment_submitted_task.delay(
+                collector_obj.push_token,
+                collector_obj.phone,
+                client.full_name,
+                float(txn.amount),
+            )
+
+    return SubmitResponse(
+        transaction_id=txn.id,
+        status=txn.status,
+        trust_level=txn.trust_level,
+        validation_flags=txn.validation_flags,
+        parsed=ParsedSMSResponse(
+            amount=parsed.amount,
+            recipient_name=parsed.recipient_name,
+            recipient_phone=parsed.recipient_phone,
+            transaction_id=parsed.transaction_id,
+            transaction_date=parsed.transaction_date,
+            confidence=parsed.confidence,
+        ),
+    )
+
+
+@router.post("/client/submit/screenshot", response_model=SubmitResponse)
+async def client_submit_screenshot_endpoint(
+    amount: float = Form(..., gt=0),
+    screenshot: UploadFile = File(...),
+    client: Client = Depends(get_current_client),
+    db: AsyncSession = Depends(get_db),
+):
+    """Client submits their own payment proof by uploading a screenshot (LOW trust)."""
+    if not await check_submission_rate_limit(client.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Submission rate limit exceeded. Maximum 5 per hour.",
+        )
+
+    # Upload screenshot to S3
+    screenshot_key = None
+    content = await screenshot.read()
+    try:
+        screenshot_key = await upload_screenshot(
+            content, screenshot.content_type, client.collector_id, client.id
+        )
+    except ImageValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    try:
+        txn = await submit_screenshot_as_client(db, client, amount, screenshot_key)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    await increment_submission_count(client.id)
+
+    # Notify collector about new submission
+    collector_obj = await db.get(Collector, client.collector_id)
+    if collector_obj:
+        notify_payment_submitted_task.delay(
+            collector_obj.push_token,
+            collector_obj.phone,
+            client.full_name,
+            float(txn.amount),
+        )
+
+    return SubmitResponse(
+        transaction_id=txn.id,
+        status=txn.status,
+        trust_level=txn.trust_level,
     )
 
 

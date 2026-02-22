@@ -13,6 +13,11 @@ class SMSSubmitRequest(BaseModel):
     sms_text: str = Field(..., min_length=10, max_length=2000)
 
 
+class ClientSMSSubmitRequest(BaseModel):
+    """Client submits their own SMS — no client_id needed (from JWT)."""
+    sms_text: str = Field(..., min_length=10, max_length=2000)
+
+
 class ScreenshotSubmitRequest(BaseModel):
     client_id: uuid.UUID
     amount: float = Field(..., gt=0)

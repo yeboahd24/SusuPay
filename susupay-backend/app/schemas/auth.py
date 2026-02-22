@@ -10,6 +10,7 @@ class OTPSendRequest(BaseModel):
 
 class OTPSendResponse(BaseModel):
     message: str = "OTP sent successfully"
+    debug_code: str | None = None
 
 
 class OTPVerifyRequest(BaseModel):

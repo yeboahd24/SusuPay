@@ -41,3 +41,13 @@ class ClientListItem(BaseModel):
     balance: Decimal = Decimal("0.00")
 
     model_config = {"from_attributes": True}
+
+
+class GroupMemberItem(BaseModel):
+    """What group members can see about each other — no phone for privacy."""
+    id: uuid.UUID
+    full_name: str
+    daily_amount: Decimal
+    total_deposits: Decimal
+    transaction_count: int
+    balance: Decimal

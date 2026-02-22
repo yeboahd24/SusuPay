@@ -61,6 +61,67 @@ async def submit_sms(
     return txn, parsed, validation
 
 
+async def submit_sms_as_client(
+    db: AsyncSession,
+    client: Client,
+    sms_text: str,
+) -> tuple[Transaction, ParsedSMS, ValidationResult]:
+    """Process an SMS text submission from a client directly."""
+    collector = await _get_collector_for_client(db, client)
+
+    parsed = parse_mtn_sms(sms_text)
+    validation = await validate_submission(db, parsed, collector)
+
+    if validation.auto_reject:
+        status = "AUTO_REJECTED"
+    else:
+        status = "PENDING"
+
+    store_txn_id = None if validation.auto_reject else parsed.transaction_id
+
+    txn = Transaction(
+        collector_id=collector.id,
+        client_id=client.id,
+        amount=parsed.amount or 0,
+        mtn_txn_id=store_txn_id,
+        submission_type="SMS_TEXT",
+        trust_level=validation.trust_level,
+        status=status,
+        validation_flags=validation.flags or None,
+        raw_sms_text=sms_text,
+    )
+    db.add(txn)
+    await db.commit()
+    await db.refresh(txn)
+
+    return txn, parsed, validation
+
+
+async def submit_screenshot_as_client(
+    db: AsyncSession,
+    client: Client,
+    amount: float,
+    screenshot_key: str | None = None,
+) -> Transaction:
+    """Process a screenshot submission from a client directly (LOW trust)."""
+    collector = await _get_collector_for_client(db, client)
+
+    txn = Transaction(
+        collector_id=collector.id,
+        client_id=client.id,
+        amount=amount,
+        submission_type="SCREENSHOT",
+        trust_level="LOW",
+        status="PENDING",
+        screenshot_key=screenshot_key,
+    )
+    db.add(txn)
+    await db.commit()
+    await db.refresh(txn)
+
+    return txn
+
+
 async def submit_screenshot(
     db: AsyncSession,
     collector: Collector,
@@ -245,6 +306,20 @@ async def _get_client_for_collector(
     if client is None:
         raise ValueError("Client not found in your group")
     return client
+
+
+async def _get_collector_for_client(
+    db: AsyncSession,
+    client: Client,
+) -> Collector:
+    """Look up the collector that a client belongs to."""
+    result = await db.execute(
+        select(Collector).where(Collector.id == client.collector_id)
+    )
+    collector = result.scalar_one_or_none()
+    if collector is None:
+        raise ValueError("Collector not found")
+    return collector
 
 
 async def _get_transaction_for_collector(
