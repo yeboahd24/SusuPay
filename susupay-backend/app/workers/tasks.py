@@ -99,6 +99,42 @@ def notify_duplicate_task(
     return _run_async(notify_duplicate_submission(client_push_token, client_phone))
 
 
+@celery.task(name="app.workers.tasks.notify_payout_requested_task")
+def notify_payout_requested_task(
+    collector_push_token: str | None,
+    collector_phone: str,
+    client_name: str,
+    amount: float,
+) -> str:
+    from app.services.notification_service import notify_payout_requested
+
+    return _run_async(
+        notify_payout_requested(collector_push_token, collector_phone, client_name, amount)
+    )
+
+
+@celery.task(name="app.workers.tasks.notify_payout_approved_task")
+def notify_payout_approved_task(
+    client_push_token: str | None,
+    client_phone: str,
+    amount: float,
+) -> str:
+    from app.services.notification_service import notify_payout_approved
+
+    return _run_async(notify_payout_approved(client_push_token, client_phone, amount))
+
+
+@celery.task(name="app.workers.tasks.notify_payout_declined_task")
+def notify_payout_declined_task(
+    client_push_token: str | None,
+    client_phone: str,
+    reason: str,
+) -> str:
+    from app.services.notification_service import notify_payout_declined
+
+    return _run_async(notify_payout_declined(client_push_token, client_phone, reason))
+
+
 @celery.task(name="app.workers.tasks.daily_reminder_task")
 def daily_reminder_task() -> int:
     """

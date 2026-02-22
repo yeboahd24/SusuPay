@@ -45,6 +45,9 @@ async def _mock_celery_tasks():
         tasks.notify_payment_confirmed_task,
         tasks.notify_payment_queried_task,
         tasks.notify_duplicate_task,
+        tasks.notify_payout_requested_task,
+        tasks.notify_payout_approved_task,
+        tasks.notify_payout_declined_task,
         tasks.daily_reminder_task,
     ]
     originals = {}
