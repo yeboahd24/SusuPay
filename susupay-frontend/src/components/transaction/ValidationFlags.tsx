@@ -8,7 +8,7 @@ interface ValidationFlagsProps {
 export function ValidationFlags({ flags }: ValidationFlagsProps) {
   const [expanded, setExpanded] = useState(false);
 
-  if (flags.length === 0) return null;
+  if (!flags || flags.length === 0) return null;
 
   const passedCount = flags.filter((f) => f.passed).length;
   const summary = `${passedCount}/${flags.length} checks passed`;

@@ -1,3 +1,4 @@
+import ssl as ssl_module
 from collections.abc import AsyncGenerator
 from unittest.mock import MagicMock
 
@@ -12,6 +13,10 @@ from app.config import settings
 from app.database import get_db
 from app.main import app
 
+_ssl_ctx = ssl_module.create_default_context()
+_ssl_ctx.check_hostname = False
+_ssl_ctx.verify_mode = ssl_module.CERT_NONE
+
 
 @pytest.fixture(scope="session")
 def anyio_backend():
@@ -20,7 +25,7 @@ def anyio_backend():
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    engine = create_async_engine(settings.DATABASE_URL, echo=False, connect_args={"ssl": _ssl_ctx, "statement_cache_size": 0, "prepared_statement_cache_size": 0})
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with factory() as session:
         # Truncate all tables before each test to avoid stale data

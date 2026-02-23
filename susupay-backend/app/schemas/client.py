@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -39,6 +39,7 @@ class ClientListItem(BaseModel):
     is_active: bool
     joined_at: datetime
     balance: Decimal = Decimal("0.00")
+    payout_position: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -51,3 +52,16 @@ class GroupMemberItem(BaseModel):
     total_deposits: Decimal
     transaction_count: int
     balance: Decimal
+    payout_position: int | None = None
+    payout_date: date | None = None
+
+
+class ClientScheduleSummary(BaseModel):
+    has_schedule: bool
+    my_position: int | None = None
+    my_payout_date: date | None = None
+    days_until_my_payout: int | None = None
+    current_recipient_name: str | None = None
+    next_recipient_name: str | None = None
+    total_positions: int
+    payout_interval_days: int

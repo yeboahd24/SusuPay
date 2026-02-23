@@ -78,6 +78,11 @@ export function Clients() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
+                    {client.payout_position !== null && (
+                      <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-xs font-bold flex items-center justify-center shrink-0">
+                        {client.payout_position}
+                      </span>
+                    )}
                     <p className="font-semibold text-gray-900">{client.full_name}</p>
                     {!client.is_active && <Badge color="red">Inactive</Badge>}
                   </div>

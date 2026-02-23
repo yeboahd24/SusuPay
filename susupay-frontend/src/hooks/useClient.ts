@@ -1,10 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 import { API } from '../api/endpoints';
-import type { ClientProfile, ClientUpdateRequest, ClientBalance, GroupMemberItem } from '../types/client';
+import type { ClientProfile, ClientUpdateRequest, ClientBalance, GroupMemberItem, ClientScheduleSummary } from '../types/client';
 import type { ClientTransactionItem } from '../types/transaction';
 import type { ClientSMSSubmitRequest, SubmitResponse } from '../types/transaction';
 import type { PayoutRequest, PayoutResponse, ClientPayoutItem } from '../types/payout';
+import type { RotationScheduleResponse } from '../types/collector';
+import type { PaginatedResponse } from '../types/common';
 
 export function useClientBalance() {
   return useQuery<ClientBalance>({
@@ -50,23 +52,37 @@ export function useGroupMembers() {
 }
 
 export function useMemberHistory(memberId: string) {
-  return useQuery<ClientTransactionItem[]>({
+  return useInfiniteQuery<PaginatedResponse<ClientTransactionItem>>({
     queryKey: ['member-history', memberId],
-    queryFn: async () => {
-      const { data } = await api.get(API.CLIENTS.MEMBER_HISTORY(memberId));
+    queryFn: async ({ pageParam }) => {
+      const { data } = await api.get(API.CLIENTS.MEMBER_HISTORY(memberId), {
+        params: { skip: pageParam, limit: 20 },
+      });
       return data;
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.skip + lastPage.limit < lastPage.total
+        ? lastPage.skip + lastPage.limit
+        : undefined,
     enabled: !!memberId,
   });
 }
 
-export function useMyTransactions() {
-  return useQuery<ClientTransactionItem[]>({
-    queryKey: ['my-transactions'],
-    queryFn: async () => {
-      const { data } = await api.get(API.TRANSACTIONS.MY_HISTORY);
+export function useMyTransactions(status?: string) {
+  return useInfiniteQuery<PaginatedResponse<ClientTransactionItem>>({
+    queryKey: ['my-transactions', status ?? 'all'],
+    queryFn: async ({ pageParam }) => {
+      const params: Record<string, unknown> = { skip: pageParam, limit: 20 };
+      if (status) params.status = status;
+      const { data } = await api.get(API.TRANSACTIONS.MY_HISTORY, { params });
       return data;
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.skip + lastPage.limit < lastPage.total
+        ? lastPage.skip + lastPage.limit
+        : undefined,
   });
 }
 
@@ -118,11 +134,39 @@ export function useRequestPayout() {
 }
 
 export function useMyPayouts() {
-  return useQuery<ClientPayoutItem[]>({
+  return useInfiniteQuery<PaginatedResponse<ClientPayoutItem>>({
     queryKey: ['my-payouts'],
-    queryFn: async () => {
-      const { data } = await api.get(API.PAYOUTS.MY_PAYOUTS);
+    queryFn: async ({ pageParam }) => {
+      const { data } = await api.get(API.PAYOUTS.MY_PAYOUTS, {
+        params: { skip: pageParam, limit: 20 },
+      });
       return data;
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.skip + lastPage.limit < lastPage.total
+        ? lastPage.skip + lastPage.limit
+        : undefined,
+  });
+}
+
+export function useMySchedule() {
+  return useQuery<ClientScheduleSummary>({
+    queryKey: ['client-schedule'],
+    queryFn: async () => {
+      const { data } = await api.get(API.CLIENTS.SCHEDULE);
+      return data;
+    },
+  });
+}
+
+export function useGroupSchedule() {
+  return useQuery<RotationScheduleResponse>({
+    queryKey: ['group-schedule'],
+    queryFn: async () => {
+      const { data } = await api.get(API.CLIENTS.GROUP_SCHEDULE);
+      return data;
+    },
+    retry: false,
   });
 }

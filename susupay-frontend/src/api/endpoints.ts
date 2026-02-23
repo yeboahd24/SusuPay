@@ -19,12 +19,15 @@ export const API = {
     DASHBOARD: `${BASE}/collectors/me/dashboard`,
     CLIENTS: `${BASE}/collectors/me/clients`,
     CLIENT: (id: string) => `${BASE}/collectors/me/clients/${id}`,
+    SCHEDULE: `${BASE}/collectors/me/schedule`,
   },
   CLIENTS: {
     ME: `${BASE}/clients/me`,
     BALANCE: `${BASE}/clients/me/balance`,
     GROUP: `${BASE}/clients/me/group`,
     MEMBER_HISTORY: (id: string) => `${BASE}/clients/me/group/${id}/history`,
+    SCHEDULE: `${BASE}/clients/me/schedule`,
+    GROUP_SCHEDULE: `${BASE}/clients/me/group/schedule`,
   },
   TRANSACTIONS: {
     SUBMIT_SMS: `${BASE}/transactions/submit/sms`,

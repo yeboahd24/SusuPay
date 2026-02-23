@@ -3,13 +3,21 @@ import { useMemberHistory, useGroupMembers } from '../../hooks/useClient';
 import { Badge, statusBadgeColor } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { LoadMoreButton } from '../../components/ui/LoadMoreButton';
 
 export function MemberHistory() {
   const { memberId } = useParams<{ memberId: string }>();
-  const { data: transactions, isLoading } = useMemberHistory(memberId ?? '');
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useMemberHistory(memberId ?? '');
   const { data: members } = useGroupMembers();
 
   const member = members?.find((m) => m.id === memberId);
+  const transactions = data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <div className="p-4 space-y-4">
@@ -38,7 +46,7 @@ export function MemberHistory() {
       {/* Transaction list */}
       {isLoading ? (
         <LoadingSpinner className="mt-12" />
-      ) : !transactions?.length ? (
+      ) : !transactions.length ? (
         <EmptyState
           icon={
             <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -85,6 +93,11 @@ export function MemberHistory() {
               )}
             </div>
           ))}
+          <LoadMoreButton
+            onClick={() => fetchNextPage()}
+            loading={isFetchingNextPage}
+            hasMore={!!hasNextPage}
+          />
         </div>
       )}
     </div>

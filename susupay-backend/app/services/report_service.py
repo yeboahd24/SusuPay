@@ -82,6 +82,7 @@ async def get_monthly_summary(
 
         clients.append(
             {
+                "client_id": str(client_id),
                 "client_name": dep_row.full_name,
                 "total_deposits": deposits,
                 "deposit_count": dep_count,

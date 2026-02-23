@@ -1,4 +1,5 @@
 import asyncio
+import ssl as ssl_module
 import sys
 from pathlib import Path
 
@@ -22,6 +23,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+ssl_ctx = ssl_module.create_default_context()
+ssl_ctx.check_hostname = False
+ssl_ctx.verify_mode = ssl_module.CERT_NONE
 
 
 def run_migrations_offline() -> None:
@@ -47,6 +52,7 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={"ssl": ssl_ctx, "statement_cache_size": 0, "prepared_statement_cache_size": 0},
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

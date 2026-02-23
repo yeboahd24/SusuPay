@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Client
@@ -107,31 +107,57 @@ async def complete_payout(
 async def get_client_payouts(
     db: AsyncSession,
     client_id: uuid.UUID,
-) -> list[Payout]:
-    """Get all payouts for a specific client."""
+    skip: int = 0,
+    limit: int = 20,
+) -> dict:
+    """Get payouts for a specific client (paginated)."""
+    where_clause = [Payout.client_id == client_id]
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Payout)
+        .where(*where_clause)
+    )
+    total = count_result.scalar_one()
+
     result = await db.execute(
         select(Payout)
-        .where(Payout.client_id == client_id)
+        .where(*where_clause)
         .order_by(Payout.requested_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
-    return list(result.scalars().all())
+    items = list(result.scalars().all())
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 async def get_collector_payouts(
     db: AsyncSession,
     collector_id: uuid.UUID,
     status_filter: str | None = None,
-) -> list[dict]:
-    """Get all payouts for a collector with client names, optionally filtered."""
+    skip: int = 0,
+    limit: int = 20,
+) -> dict:
+    """Get payouts for a collector with client names, optionally filtered (paginated)."""
+    where_clauses = [Payout.collector_id == collector_id]
+    if status_filter:
+        where_clauses.append(Payout.status == status_filter)
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Payout)
+        .where(*where_clauses)
+    )
+    total = count_result.scalar_one()
+
     query = (
         select(Payout, Client.full_name)
         .join(Client, Payout.client_id == Client.id)
-        .where(Payout.collector_id == collector_id)
+        .where(*where_clauses)
+        .order_by(Payout.requested_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
-    if status_filter:
-        query = query.where(Payout.status == status_filter)
-    query = query.order_by(Payout.requested_at.desc())
-
     result = await db.execute(query)
     items = []
     for payout, client_name in result.all():
@@ -149,7 +175,7 @@ async def get_collector_payouts(
                 "completed_at": payout.completed_at,
             }
         )
-    return items
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 async def _get_payout_for_collector(

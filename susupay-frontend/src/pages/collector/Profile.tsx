@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCollectorProfile, useUpdateProfile } from '../../hooks/useCollector';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
@@ -10,6 +11,7 @@ export function Profile() {
   const { data: profile, isLoading } = useCollectorProfile();
   const updateProfile = useUpdateProfile();
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -64,8 +66,11 @@ export function Profile() {
 
   if (!profile) {
     return (
-      <div className="p-4">
+      <div className="p-4 space-y-4">
         <p className="text-gray-600">Could not load profile.</p>
+        <Button variant="secondary" fullWidth onClick={logout}>
+          Sign Out
+        </Button>
       </div>
     );
   }
@@ -128,6 +133,20 @@ export function Profile() {
           Share this code with clients so they can join your group.
         </p>
       </div>
+
+      {/* Monthly Reports */}
+      <button
+        onClick={() => navigate('/collector/reports')}
+        className="w-full bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+      >
+        <div>
+          <p className="font-medium text-gray-900 text-sm">Monthly Reports</p>
+          <p className="text-xs text-gray-500 mt-0.5">View summaries and download PDFs</p>
+        </div>
+        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
 
       {/* Sign out */}
       <Button variant="secondary" fullWidth onClick={logout}>

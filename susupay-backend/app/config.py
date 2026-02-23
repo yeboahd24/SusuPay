@@ -2,9 +2,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://susupay:susupay_secret@db:5432/susupay"
-    DATABASE_URL_SYNC: str = "postgresql://susupay:susupay_secret@db:5432/susupay"
+    # Database (Supabase)
+    DATABASE_URL: str = ""
+    DATABASE_URL_SYNC: str = ""
 
     # Redis
     REDIS_URL: str = "redis://redis:6379/0"
@@ -15,11 +15,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_HOURS: int = 8
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
-    # AWS S3
-    AWS_ACCESS_KEY_ID: str = ""
-    AWS_SECRET_ACCESS_KEY: str = ""
-    AWS_REGION: str = "eu-west-1"
-    S3_BUCKET_NAME: str = "susupay-screenshots"
+    # Cloudinary
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
 
     # Hubtel SMS API
     HUBTEL_CLIENT_ID: str = ""

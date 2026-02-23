@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 import { API } from '../api/endpoints';
-import type { CollectorProfile, CollectorUpdateRequest, CollectorDashboard } from '../types/collector';
+import type { CollectorProfile, CollectorUpdateRequest, CollectorDashboard, RotationScheduleResponse, RotationOrderRequest } from '../types/collector';
 import type { ClientListItem, ClientUpdateRequest } from '../types/client';
 
 export function useDashboard() {
@@ -78,6 +78,32 @@ export function useDeactivateClient() {
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useSchedule() {
+  return useQuery<RotationScheduleResponse>({
+    queryKey: ['collector-schedule'],
+    queryFn: async () => {
+      const { data } = await api.get(API.COLLECTORS.SCHEDULE);
+      return data;
+    },
+    retry: false,
+  });
+}
+
+export function useSetRotationOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: RotationOrderRequest) => {
+      const { data } = await api.put(API.COLLECTORS.SCHEDULE, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collector-schedule'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },

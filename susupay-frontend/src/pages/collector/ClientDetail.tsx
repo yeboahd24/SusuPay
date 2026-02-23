@@ -14,7 +14,7 @@ export function ClientDetail() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const { data: client, isLoading } = useClient(clientId!);
-  const { data: allTransactions } = useTransactions();
+  const { data: transactionsData } = useTransactions();
   const updateClient = useUpdateClient();
   const deactivateClient = useDeactivateClient();
 
@@ -24,7 +24,7 @@ export function ClientDetail() {
   const [editError, setEditError] = useState('');
   const [showDeactivate, setShowDeactivate] = useState(false);
 
-  const clientTransactions = allTransactions?.filter((tx) => tx.client_id === clientId) ?? [];
+  const clientTransactions = (transactionsData?.pages.flatMap((p) => p.items) ?? []).filter((tx) => tx.client_id === clientId);
 
   function startEdit() {
     if (!client) return;

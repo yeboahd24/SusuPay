@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 
 class ClientSummaryItem(BaseModel):
+    client_id: str
     client_name: str
     total_deposits: Decimal
     deposit_count: int

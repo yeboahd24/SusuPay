@@ -1,4 +1,5 @@
 export interface ClientSummaryItem {
+  client_id: string;
   client_name: string;
   total_deposits: string;
   deposit_count: number;

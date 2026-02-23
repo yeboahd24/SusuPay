@@ -7,6 +7,7 @@ from app.database import get_db
 from app.dependencies import get_current_client, get_current_collector
 from app.models.client import Client
 from app.models.collector import Collector
+from app.schemas.pagination import PaginatedResponse
 from app.schemas.payout import (
     ClientPayoutItem,
     PayoutDeclineRequest,
@@ -61,28 +62,32 @@ async def request_payout_endpoint(
     return payout
 
 
-@router.get("/my-payouts", response_model=list[ClientPayoutItem])
+@router.get("/my-payouts", response_model=PaginatedResponse[ClientPayoutItem])
 async def my_payouts(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     client: Client = Depends(get_current_client),
     db: AsyncSession = Depends(get_db),
 ):
     """Client views their own payout history."""
-    payouts = await get_client_payouts(db, client.id)
-    return payouts
+    return await get_client_payouts(db, client.id, skip=skip, limit=limit)
 
 
 # --- Collector Endpoints ---
 
 
-@router.get("", response_model=list[PayoutListItem])
+@router.get("", response_model=PaginatedResponse[PayoutListItem])
 async def list_payouts(
     status_filter: str | None = Query(None, alias="status"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     collector: Collector = Depends(get_current_collector),
     db: AsyncSession = Depends(get_db),
 ):
     """List all payouts for collector, optionally filtered by status."""
-    items = await get_collector_payouts(db, collector.id, status_filter)
-    return items
+    return await get_collector_payouts(
+        db, collector.id, status_filter, skip=skip, limit=limit
+    )
 
 
 @router.post("/{payout_id}/approve", response_model=PayoutResponse)

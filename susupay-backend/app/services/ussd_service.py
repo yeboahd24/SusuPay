@@ -153,8 +153,8 @@ async def _handle_main_menu(
 
     elif choice == "2":
         # Payment history (last 5 confirmed)
-        txns = await get_client_history(db, client_id)
-        confirmed = [t for t in txns if t.status == "CONFIRMED"][:5]
+        txns_result = await get_client_history(db, client_id, status_filter="CONFIRMED", limit=5)
+        confirmed = txns_result["items"]
         if not confirmed:
             return _release(request.SessionId, "No transactions found.")
         lines = []

@@ -3,6 +3,7 @@ import { useTransactions } from '../../hooks/useTransactions';
 import { TransactionCard } from '../../components/transaction/TransactionCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { LoadMoreButton } from '../../components/ui/LoadMoreButton';
 import type { TransactionStatus } from '../../types/transaction';
 
 const TABS: { label: string; value: TransactionStatus | undefined }[] = [
@@ -15,7 +16,15 @@ const TABS: { label: string; value: TransactionStatus | undefined }[] = [
 
 export function Transactions() {
   const [activeTab, setActiveTab] = useState<TransactionStatus | undefined>(undefined);
-  const { data: transactions, isLoading, refetch } = useTransactions(activeTab);
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTransactions(activeTab);
+
+  const transactions = data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <div className="p-4 space-y-4">
@@ -43,7 +52,7 @@ export function Transactions() {
       {/* Transaction list */}
       {isLoading ? (
         <LoadingSpinner className="mt-12" />
-      ) : !transactions?.length ? (
+      ) : !transactions.length ? (
         <EmptyState
           icon={
             <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -58,16 +67,13 @@ export function Transactions() {
           {transactions.map((tx) => (
             <TransactionCard key={tx.id} transaction={tx} />
           ))}
+          <LoadMoreButton
+            onClick={() => fetchNextPage()}
+            loading={isFetchingNextPage}
+            hasMore={!!hasNextPage}
+          />
         </div>
       )}
-
-      {/* Pull to refresh hint */}
-      <button
-        onClick={() => refetch()}
-        className="w-full text-center text-sm text-gray-400 py-2 hover:text-gray-600"
-      >
-        Tap to refresh
-      </button>
     </div>
   );
 }

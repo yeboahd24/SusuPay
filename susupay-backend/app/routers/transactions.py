@@ -7,6 +7,7 @@ from app.database import get_db
 from app.dependencies import get_current_client, get_current_collector
 from app.models.client import Client
 from app.models.collector import Collector
+from app.schemas.pagination import PaginatedResponse
 from app.schemas.transaction import (
     ClientSMSSubmitRequest,
     ClientTransactionItem,
@@ -150,25 +151,29 @@ async def submit_screenshot_endpoint(
 # --- Collector Feed & Actions ---
 
 
-@router.get("/feed", response_model=list[TransactionFeedItem])
+@router.get("/feed", response_model=PaginatedResponse[TransactionFeedItem])
 async def get_feed(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     collector: Collector = Depends(get_current_collector),
     db: AsyncSession = Depends(get_db),
 ):
     """Get pending transactions for the collector to review."""
-    items = await get_pending_feed(db, collector.id)
-    return items
+    return await get_pending_feed(db, collector.id, skip=skip, limit=limit)
 
 
-@router.get("", response_model=list[TransactionFeedItem])
+@router.get("", response_model=PaginatedResponse[TransactionFeedItem])
 async def list_transactions(
     status_filter: str | None = Query(None, alias="status"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     collector: Collector = Depends(get_current_collector),
     db: AsyncSession = Depends(get_db),
 ):
     """List all transactions for collector, optionally filtered by status."""
-    items = await get_collector_transactions(db, collector.id, status_filter)
-    return items
+    return await get_collector_transactions(
+        db, collector.id, status_filter, skip=skip, limit=limit
+    )
 
 
 @router.post("/{txn_id}/confirm", response_model=TransactionActionResponse)
@@ -352,11 +357,15 @@ async def client_submit_screenshot_endpoint(
 # --- Client History ---
 
 
-@router.get("/my-history", response_model=list[ClientTransactionItem])
+@router.get("/my-history", response_model=PaginatedResponse[ClientTransactionItem])
 async def my_history(
+    status_filter: str | None = Query(None, alias="status"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     client: Client = Depends(get_current_client),
     db: AsyncSession = Depends(get_db),
 ):
     """Client views their own transaction history (excludes AUTO_REJECTED)."""
-    txns = await get_client_history(db, client.id)
-    return txns
+    return await get_client_history(
+        db, client.id, status_filter=status_filter, skip=skip, limit=limit
+    )

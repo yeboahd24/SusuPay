@@ -15,7 +15,7 @@ export function CollectorDashboard() {
   }
 
   const stats = dashboard.data;
-  const pending = feed.data?.slice(0, 5) ?? [];
+  const pending = feed.data?.items ?? [];
 
   return (
     <div className="p-4 space-y-6">
@@ -39,15 +39,30 @@ export function CollectorDashboard() {
             GHS {stats?.total_confirmed_today ?? 0}
           </p>
         </div>
-        <Link
-          to="/collector/submit-sms"
-          className="bg-primary-50 rounded-xl border border-primary-200 p-4 flex flex-col items-center justify-center hover:bg-primary-100 transition-colors"
-        >
-          <svg className="w-6 h-6 text-primary-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          <p className="text-sm font-medium text-primary-700">Submit SMS</p>
-        </Link>
+        {stats?.next_payout_client ? (
+          <Link
+            to="/collector/schedule"
+            className="bg-accent-50 rounded-xl border border-accent-200 p-4 hover:bg-accent-100 transition-colors"
+          >
+            <p className="text-sm text-accent-600">Next Payout</p>
+            <p className="text-base font-bold text-accent-800 truncate">{stats.next_payout_client}</p>
+            <p className="text-xs text-accent-500">
+              {stats.next_payout_date
+                ? new Date(stats.next_payout_date).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })
+                : ''}
+            </p>
+          </Link>
+        ) : (
+          <Link
+            to="/collector/submit-sms"
+            className="bg-primary-50 rounded-xl border border-primary-200 p-4 flex flex-col items-center justify-center hover:bg-primary-100 transition-colors"
+          >
+            <svg className="w-6 h-6 text-primary-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <p className="text-sm font-medium text-primary-700">Submit SMS</p>
+          </Link>
+        )}
       </div>
 
       {/* Pending transactions feed */}

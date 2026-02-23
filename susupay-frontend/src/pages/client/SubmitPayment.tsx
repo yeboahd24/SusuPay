@@ -87,47 +87,69 @@ export function SubmitPayment() {
 
   // Success result view
   if (result) {
+    const isDuplicate = result.status === 'AUTO_REJECTED';
+
     return (
       <div className="p-4 space-y-4">
-        <h1 className="text-xl font-bold text-gray-900">Submission Result</h1>
+        <h1 className="text-xl font-bold text-gray-900">
+          {isDuplicate ? 'Duplicate Transaction' : 'Submission Result'}
+        </h1>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Badge color={statusBadgeColor(result.status)}>{result.status}</Badge>
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              result.trust_level === 'HIGH' ? 'text-green-600 bg-green-50' :
-              result.trust_level === 'MEDIUM' ? 'text-amber-600 bg-amber-50' :
-              'text-red-600 bg-red-50'
-            }`}>
-              Trust: {result.trust_level}
-            </span>
-          </div>
-
-          {result.parsed && (
-            <div className="space-y-1 text-sm">
-              {result.parsed.amount != null && (
-                <p><span className="text-gray-500">Amount:</span> GHS {result.parsed.amount}</p>
-              )}
-              {result.parsed.recipient_name && (
-                <p><span className="text-gray-500">Recipient:</span> {result.parsed.recipient_name}</p>
-              )}
-              {result.parsed.transaction_id && (
-                <p><span className="text-gray-500">Txn ID:</span> {result.parsed.transaction_id}</p>
-              )}
-              <p><span className="text-gray-500">Confidence:</span> {result.parsed.confidence}</p>
+        {isDuplicate ? (
+          <div className="bg-red-50 rounded-xl border border-red-200 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-red-800">
+                This transaction has already been submitted.
+              </span>
             </div>
-          )}
+            <p className="text-sm text-red-700">
+              The MoMo transaction ID in this SMS was already used in a previous submission. Each transaction can only be submitted once. If this is a new payment, please use the new SMS you received.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Badge color={statusBadgeColor(result.status)}>{result.status}</Badge>
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                result.trust_level === 'HIGH' ? 'text-green-600 bg-green-50' :
+                result.trust_level === 'MEDIUM' ? 'text-amber-600 bg-amber-50' :
+                'text-red-600 bg-red-50'
+              }`}>
+                Trust: {result.trust_level}
+              </span>
+            </div>
 
-          <ValidationFlags flags={result.validation_flags} />
-        </div>
+            {result.parsed && (
+              <div className="space-y-1 text-sm">
+                {result.parsed.amount != null && (
+                  <p><span className="text-gray-500">Amount:</span> GHS {result.parsed.amount}</p>
+                )}
+                {result.parsed.recipient_name && (
+                  <p><span className="text-gray-500">Recipient:</span> {result.parsed.recipient_name}</p>
+                )}
+                {result.parsed.transaction_id && (
+                  <p><span className="text-gray-500">Txn ID:</span> {result.parsed.transaction_id}</p>
+                )}
+                <p><span className="text-gray-500">Confidence:</span> {result.parsed.confidence}</p>
+              </div>
+            )}
 
-        <p className="text-sm text-gray-500 text-center">
-          Your collector will review and confirm this transaction.
-        </p>
+            <ValidationFlags flags={result.validation_flags} />
+          </div>
+        )}
+
+        {!isDuplicate && (
+          <p className="text-sm text-gray-500 text-center">
+            Your collector will review and confirm this transaction.
+          </p>
+        )}
 
         <div className="flex gap-3">
           <Button variant="secondary" onClick={handleReset} fullWidth>
-            Submit Another
+            {isDuplicate ? 'Try Again' : 'Submit Another'}
           </Button>
           <Button onClick={() => navigate('/client/history')} fullWidth>
             View History

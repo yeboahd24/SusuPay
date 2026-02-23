@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import type { NavItem } from './BottomNav';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 const navItems: NavItem[] = [
   {
@@ -18,6 +19,15 @@ const navItems: NavItem[] = [
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Schedule',
+    path: '/client/schedule',
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
       </svg>
     ),
   },
@@ -42,6 +52,7 @@ const navItems: NavItem[] = [
 ];
 
 export function ClientLayout() {
+  usePushNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const showFab = location.pathname !== '/client/submit';

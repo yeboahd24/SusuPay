@@ -7,12 +7,19 @@ import { Modal } from '../../components/ui/Modal';
 import { Badge, statusBadgeColor } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { LoadMoreButton } from '../../components/ui/LoadMoreButton';
 import type { PayoutType } from '../../types/payout';
 import type { AxiosError } from 'axios';
 
 export function Payouts() {
   const { data: balance } = useClientBalance();
-  const { data: payouts, isLoading } = useMyPayouts();
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useMyPayouts();
   const requestPayout = useRequestPayout();
 
   const [showRequest, setShowRequest] = useState(false);
@@ -84,7 +91,7 @@ export function Payouts() {
       {/* Payout list */}
       {isLoading ? (
         <LoadingSpinner className="mt-12" />
-      ) : !payouts?.length ? (
+      ) : !(data?.pages.flatMap((p) => p.items).length) ? (
         <EmptyState
           icon={
             <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -96,7 +103,7 @@ export function Payouts() {
         />
       ) : (
         <div className="space-y-3">
-          {payouts.map((p) => (
+          {data.pages.flatMap((p) => p.items).map((p) => (
             <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-start justify-between">
                 <div>
@@ -131,6 +138,11 @@ export function Payouts() {
               )}
             </div>
           ))}
+          <LoadMoreButton
+            onClick={() => fetchNextPage()}
+            loading={isFetchingNextPage}
+            hasMore={!!hasNextPage}
+          />
         </div>
       )}
 

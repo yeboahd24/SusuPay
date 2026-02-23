@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useClientBalance, useMyTransactions, useGroupMembers } from '../../hooks/useClient';
+import { useClientBalance, useMyTransactions, useGroupMembers, useMySchedule } from '../../hooks/useClient';
 import { Badge, statusBadgeColor } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -8,12 +8,13 @@ export function ClientDashboard() {
   const balance = useClientBalance();
   const transactions = useMyTransactions();
   const group = useGroupMembers();
+  const schedule = useMySchedule();
 
   if (balance.isLoading) {
     return <LoadingSpinner className="mt-20" />;
   }
 
-  const recent = transactions.data?.slice(0, 5) ?? [];
+  const recent = (transactions.data?.pages.flatMap((p) => p.items) ?? []).slice(0, 5);
   const members = group.data ?? [];
 
   return (
@@ -29,6 +30,48 @@ export function ClientDashboard() {
           <span>Payouts: GHS {balance.data?.total_payouts ?? '0.00'}</span>
         </div>
       </div>
+
+      {/* Payout schedule card */}
+      {schedule.data?.has_schedule && (
+        <Link
+          to="/client/schedule"
+          className="block bg-white rounded-xl border border-accent-200 p-4 hover:border-accent-300 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-accent-700">Payout Schedule</p>
+            <svg className="w-4 h-4 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </div>
+          <div className="flex items-baseline gap-3">
+            {schedule.data.my_position && (
+              <div>
+                <span className="text-2xl font-bold text-gray-900">#{schedule.data.my_position}</span>
+                <span className="text-xs text-gray-500 ml-1">of {schedule.data.total_positions}</span>
+              </div>
+            )}
+            {schedule.data.my_payout_date && (
+              <div className="text-right flex-1">
+                <p className="text-sm font-semibold text-gray-900">
+                  {new Date(schedule.data.my_payout_date).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
+                </p>
+                {schedule.data.days_until_my_payout !== null && schedule.data.days_until_my_payout >= 0 && (
+                  <p className="text-xs text-accent-600">
+                    {schedule.data.days_until_my_payout === 0
+                      ? 'Today!'
+                      : `${schedule.data.days_until_my_payout} day${schedule.data.days_until_my_payout === 1 ? '' : 's'} away`}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          {schedule.data.current_recipient_name && (
+            <p className="text-xs text-gray-500 mt-2">
+              Current: <span className="font-medium text-gray-700">{schedule.data.current_recipient_name}</span>
+            </p>
+          )}
+        </Link>
+      )}
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3">

@@ -174,7 +174,7 @@ async def test_pending_feed(client: AsyncClient):
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert resp.status_code == 200
-    items = resp.json()
+    items = resp.json()["items"]
     assert len(items) >= 1
     assert items[0]["client_name"] == "Feed Client"
     assert items[0]["status"] == "PENDING"
@@ -341,7 +341,7 @@ async def test_client_history(client: AsyncClient):
         headers={"Authorization": f"Bearer {client_token}"},
     )
     assert resp.status_code == 200
-    items = resp.json()
+    items = resp.json()["items"]
     assert len(items) >= 1
     assert items[0]["amount"] == "20.00"
 
@@ -372,7 +372,7 @@ async def test_multi_tenant_transaction_isolation(client: AsyncClient):
         headers={"Authorization": f"Bearer {token_b}"},
     )
     assert resp.status_code == 200
-    assert len(resp.json()) == 0
+    assert len(resp.json()["items"]) == 0
 
     # Collector B cannot confirm A's transaction
     resp = await client.post(

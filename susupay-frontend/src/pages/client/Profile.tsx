@@ -48,8 +48,11 @@ export function ClientProfile() {
 
   if (!profile) {
     return (
-      <div className="p-4">
+      <div className="p-4 space-y-4">
         <p className="text-gray-600">Could not load profile.</p>
+        <Button variant="secondary" fullWidth onClick={logout}>
+          Sign Out
+        </Button>
       </div>
     );
   }

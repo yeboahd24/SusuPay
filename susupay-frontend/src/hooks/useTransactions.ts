@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 import { API } from '../api/endpoints';
 import type {
@@ -10,25 +10,34 @@ import type {
   QueryRequest,
   RejectRequest,
 } from '../types/transaction';
+import type { PaginatedResponse } from '../types/common';
 
-export function useTransactionFeed() {
-  return useQuery<TransactionFeedItem[]>({
+export function useTransactionFeed(limit = 5) {
+  return useQuery<PaginatedResponse<TransactionFeedItem>>({
     queryKey: ['feed'],
     queryFn: async () => {
-      const { data } = await api.get(API.TRANSACTIONS.FEED);
+      const { data } = await api.get(API.TRANSACTIONS.FEED, {
+        params: { skip: 0, limit },
+      });
       return data;
     },
   });
 }
 
 export function useTransactions(status?: TransactionStatus) {
-  return useQuery<TransactionFeedItem[]>({
+  return useInfiniteQuery<PaginatedResponse<TransactionFeedItem>>({
     queryKey: ['transactions', status ?? 'all'],
-    queryFn: async () => {
-      const params = status ? { status } : {};
+    queryFn: async ({ pageParam }) => {
+      const params: Record<string, unknown> = { skip: pageParam, limit: 20 };
+      if (status) params.status = status;
       const { data } = await api.get(API.TRANSACTIONS.LIST, { params });
       return data;
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.skip + lastPage.limit < lastPage.total
+        ? lastPage.skip + lastPage.limit
+        : undefined,
   });
 }
 

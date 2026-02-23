@@ -20,6 +20,9 @@ import { History } from './pages/client/History';
 import { Payouts } from './pages/client/Payouts';
 import { ClientProfile } from './pages/client/Profile';
 import { MemberHistory } from './pages/client/MemberHistory';
+import { Reports } from './pages/collector/Reports';
+import { CollectorSchedule } from './pages/collector/Schedule';
+import { ClientSchedule } from './pages/client/Schedule';
 
 export function App() {
   return (
@@ -40,6 +43,8 @@ export function App() {
           <Route path="/collector/submit-sms" element={<SubmitSms />} />
           <Route path="/collector/clients" element={<Clients />} />
           <Route path="/collector/clients/:clientId" element={<ClientDetail />} />
+          <Route path="/collector/schedule" element={<CollectorSchedule />} />
+          <Route path="/collector/reports" element={<Reports />} />
           <Route path="/collector/profile" element={<Profile />} />
         </Route>
       </Route>
@@ -52,6 +57,7 @@ export function App() {
           <Route path="/client/history" element={<History />} />
           <Route path="/client/group/:memberId" element={<MemberHistory />} />
           <Route path="/client/payouts" element={<Payouts />} />
+          <Route path="/client/schedule" element={<ClientSchedule />} />
           <Route path="/client/profile" element={<ClientProfile />} />
         </Route>
       </Route>

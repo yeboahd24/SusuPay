@@ -1,7 +1,6 @@
 """
-S3 image upload service for screenshot submissions.
+Cloudinary image upload service for screenshot submissions.
 
-- Private ACL, signed URLs (1h expiry)
 - MIME validation: jpeg/png only
 - Max 5MB file size
 """
@@ -9,8 +8,8 @@ S3 image upload service for screenshot submissions.
 import uuid
 from io import BytesIO
 
-import boto3
-from botocore.exceptions import ClientError
+import cloudinary
+import cloudinary.uploader
 from PIL import Image
 
 from app.config import settings
@@ -18,9 +17,23 @@ from app.config import settings
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+_configured = False
+
 
 class ImageValidationError(Exception):
     pass
+
+
+def _ensure_configured() -> None:
+    global _configured
+    if not _configured and settings.CLOUDINARY_CLOUD_NAME:
+        cloudinary.config(
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+            secure=True,
+        )
+        _configured = True
 
 
 def validate_image(content: bytes, content_type: str) -> None:
@@ -43,19 +56,6 @@ def validate_image(content: bytes, content_type: str) -> None:
         raise ImageValidationError("File is not a valid image.")
 
 
-def _get_s3_client():
-    return boto3.client(
-        "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_REGION,
-    )
-
-
-def _extension_for_mime(content_type: str) -> str:
-    return "jpg" if content_type == "image/jpeg" else "png"
-
-
 async def upload_screenshot(
     content: bytes,
     content_type: str,
@@ -63,42 +63,38 @@ async def upload_screenshot(
     client_id: uuid.UUID,
 ) -> str:
     """
-    Upload a screenshot to S3.
-    Returns the S3 object key.
+    Upload a screenshot to Cloudinary.
+    Returns the Cloudinary public_id (used to build URLs).
     """
     validate_image(content, content_type)
 
-    ext = _extension_for_mime(content_type)
-    key = f"screenshots/{collector_id}/{client_id}/{uuid.uuid4()}.{ext}"
+    public_id = f"susupay/screenshots/{collector_id}/{client_id}/{uuid.uuid4()}"
 
-    if not settings.AWS_ACCESS_KEY_ID:
-        # Dev mode: skip actual upload, return the key
-        return key
+    if not settings.CLOUDINARY_CLOUD_NAME:
+        # Dev mode: skip actual upload, return the public_id
+        return public_id
 
-    s3 = _get_s3_client()
-    s3.put_object(
-        Bucket=settings.S3_BUCKET_NAME,
-        Key=key,
-        Body=content,
-        ContentType=content_type,
-        ACL="private",
+    _ensure_configured()
+    result = cloudinary.uploader.upload(
+        BytesIO(content),
+        public_id=public_id,
+        resource_type="image",
+        type="private",
     )
-    return key
+    return result["public_id"]
 
 
-def generate_signed_url(key: str, expiry_seconds: int = 3600) -> str:
-    """Generate a pre-signed URL for a private S3 object. Default 1h expiry."""
-    if not settings.AWS_ACCESS_KEY_ID:
-        # Dev mode: return a placeholder URL
-        return f"https://{settings.S3_BUCKET_NAME}.s3.{settings.AWS_REGION}.amazonaws.com/{key}?signed=dev"
+def generate_signed_url(public_id: str, expiry_seconds: int = 3600) -> str:
+    """Generate a signed URL for a private Cloudinary image. Default 1h expiry."""
+    if not settings.CLOUDINARY_CLOUD_NAME:
+        return f"https://res.cloudinary.com/demo/image/private/{public_id}.jpg?dev=true"
 
-    s3 = _get_s3_client()
-    try:
-        url = s3.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": settings.S3_BUCKET_NAME, "Key": key},
-            ExpiresIn=expiry_seconds,
-        )
-        return url
-    except ClientError:
-        return ""
+    _ensure_configured()
+    import time
+
+    url = cloudinary.utils.private_download_url(
+        public_id,
+        "jpg",
+        expires_at=int(time.time()) + expiry_seconds,
+    )
+    return url

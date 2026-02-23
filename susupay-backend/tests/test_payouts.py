@@ -307,7 +307,7 @@ async def test_client_views_payout_history(client: AsyncClient):
         headers={"Authorization": f"Bearer {cli_token}"},
     )
     assert resp.status_code == 200
-    items = resp.json()
+    items = resp.json()["items"]
     assert len(items) == 1
     assert items[0]["amount"] == "5.00"
     assert items[0]["status"] == "REQUESTED"
@@ -333,7 +333,7 @@ async def test_collector_views_all_payouts(client: AsyncClient):
         headers={"Authorization": f"Bearer {coll_token}"},
     )
     assert resp.status_code == 200
-    items = resp.json()
+    items = resp.json()["items"]
     assert len(items) == 1
     assert items[0]["client_name"] == "Payout Client"
 
@@ -372,8 +372,8 @@ async def test_collector_filters_payouts_by_status(client: AsyncClient):
         headers={"Authorization": f"Bearer {coll_token}"},
     )
     assert resp.status_code == 200
-    assert len(resp.json()) == 1
-    assert resp.json()[0]["amount"] == "3.00"
+    assert len(resp.json()["items"]) == 1
+    assert resp.json()["items"][0]["amount"] == "3.00"
 
     # Filter APPROVED — should get 1
     resp = await client.get(
@@ -381,8 +381,8 @@ async def test_collector_filters_payouts_by_status(client: AsyncClient):
         headers={"Authorization": f"Bearer {coll_token}"},
     )
     assert resp.status_code == 200
-    assert len(resp.json()) == 1
-    assert resp.json()[0]["amount"] == "5.00"
+    assert len(resp.json()["items"]) == 1
+    assert resp.json()["items"][0]["amount"] == "5.00"
 
 
 @pytest.mark.asyncio
@@ -409,7 +409,7 @@ async def test_multi_tenant_payout_list_isolation(client: AsyncClient):
         headers={"Authorization": f"Bearer {token_b}"},
     )
     assert resp.status_code == 200
-    assert len(resp.json()) == 0
+    assert len(resp.json()["items"]) == 0
 
 
 @pytest.mark.asyncio

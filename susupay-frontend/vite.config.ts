@@ -12,6 +12,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
+      workbox: {
+        importScripts: ['/sw-push.js'],
+      },
       manifest: {
         name: 'SusuPay',
         short_name: 'SusuPay',

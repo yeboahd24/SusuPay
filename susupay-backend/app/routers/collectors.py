@@ -10,8 +10,15 @@ from app.models.client import Client
 from app.models.collector import Collector
 from app.models.transaction import Transaction
 from app.schemas.client import ClientListItem
-from app.schemas.collector import CollectorDashboard, CollectorProfile, CollectorUpdateRequest
+from app.schemas.collector import (
+    CollectorDashboard,
+    CollectorProfile,
+    CollectorUpdateRequest,
+    RotationOrderRequest,
+    RotationScheduleResponse,
+)
 from app.services.balance_service import get_all_client_balances
+from app.services.schedule_service import get_rotation_schedule, set_rotation_order
 
 router = APIRouter(prefix="/api/v1/collectors", tags=["collectors"])
 
@@ -33,6 +40,10 @@ async def update_profile(
         collector.momo_number = body.momo_number
     if body.push_token is not None:
         collector.push_token = body.push_token
+    if body.cycle_start_date is not None:
+        collector.cycle_start_date = body.cycle_start_date
+    if body.payout_interval_days is not None:
+        collector.payout_interval_days = body.payout_interval_days
     await db.commit()
     await db.refresh(collector)
     return collector
@@ -71,12 +82,31 @@ async def get_dashboard(
         )
     )
 
+    # Next payout info from schedule
+    next_payout_client = None
+    next_payout_date = None
+    schedule = await get_rotation_schedule(db, collector.id)
+    if schedule:
+        today = date.today()
+        # Find current or next upcoming entry
+        current = next((e for e in schedule["entries"] if e["is_current"]), None)
+        if current:
+            next_payout_client = current["full_name"]
+            next_payout_date = current["payout_date"]
+        else:
+            upcoming = next((e for e in schedule["entries"] if e["payout_date"] >= today), None)
+            if upcoming:
+                next_payout_client = upcoming["full_name"]
+                next_payout_date = upcoming["payout_date"]
+
     return CollectorDashboard(
         collector_id=collector.id,
         total_clients=total_q.scalar_one(),
         active_clients=active_q.scalar_one(),
         pending_transactions=pending_q.scalar_one(),
         total_confirmed_today=float(confirmed_q.scalar_one()),
+        next_payout_client=next_payout_client,
+        next_payout_date=next_payout_date,
     )
 
 
@@ -105,9 +135,39 @@ async def list_clients(
             is_active=c.is_active,
             joined_at=c.joined_at,
             balance=balance_map.get(c.id, 0),
+            payout_position=c.payout_position,
         )
         for c in clients
     ]
+
+
+@router.get("/me/schedule", response_model=RotationScheduleResponse)
+async def get_schedule(
+    collector: Collector = Depends(get_current_collector),
+    db: AsyncSession = Depends(get_db),
+):
+    schedule = await get_rotation_schedule(db, collector.id)
+    if schedule is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No rotation schedule configured. Set a cycle start date and assign positions first.",
+        )
+    return schedule
+
+
+@router.put("/me/schedule")
+async def update_schedule(
+    body: RotationOrderRequest,
+    collector: Collector = Depends(get_current_collector),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await set_rotation_order(
+            db, collector.id, [p.model_dump() for p in body.positions]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return {"detail": "Rotation order updated"}
 
 
 @router.patch("/me/clients/{client_id}", response_model=ClientListItem)

@@ -8,7 +8,7 @@ All queries scoped by collector_id for multi-tenant isolation.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Client
@@ -151,16 +151,31 @@ async def submit_screenshot(
 async def get_pending_feed(
     db: AsyncSession,
     collector_id: uuid.UUID,
-) -> list[dict]:
-    """Get all pending transactions for a collector, with client names."""
+    skip: int = 0,
+    limit: int = 20,
+) -> dict:
+    """Get pending transactions for a collector, with client names (paginated)."""
+    where_clause = [
+        Transaction.collector_id == collector_id,
+        Transaction.status == "PENDING",
+    ]
+
+    # Count total
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Transaction)
+        .where(*where_clause)
+    )
+    total = count_result.scalar_one()
+
+    # Fetch page
     result = await db.execute(
         select(Transaction, Client.full_name)
         .join(Client, Transaction.client_id == Client.id)
-        .where(
-            Transaction.collector_id == collector_id,
-            Transaction.status == "PENDING",
-        )
+        .where(*where_clause)
         .order_by(Transaction.submitted_at.asc())
+        .offset(skip)
+        .limit(limit)
     )
     items = []
     for txn, client_name in result.all():
@@ -179,24 +194,41 @@ async def get_pending_feed(
                 "collector_note": txn.collector_note,
             }
         )
-    return items
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 async def get_collector_transactions(
     db: AsyncSession,
     collector_id: uuid.UUID,
     status_filter: str | None = None,
-) -> list[dict]:
-    """Get transactions for a collector, optionally filtered by status."""
+    skip: int = 0,
+    limit: int = 20,
+) -> dict:
+    """Get transactions for a collector, optionally filtered by status (paginated)."""
+    where_clauses = [
+        Transaction.collector_id == collector_id,
+        Transaction.status != "AUTO_REJECTED",
+    ]
+    if status_filter:
+        where_clauses.append(Transaction.status == status_filter)
+
+    # Count total
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Transaction)
+        .where(*where_clauses)
+    )
+    total = count_result.scalar_one()
+
+    # Fetch page
     query = (
         select(Transaction, Client.full_name)
         .join(Client, Transaction.client_id == Client.id)
-        .where(Transaction.collector_id == collector_id)
+        .where(*where_clauses)
+        .order_by(Transaction.submitted_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
-    if status_filter:
-        query = query.where(Transaction.status == status_filter)
-    query = query.order_by(Transaction.submitted_at.desc())
-
     result = await db.execute(query)
     items = []
     for txn, client_name in result.all():
@@ -215,7 +247,7 @@ async def get_collector_transactions(
                 "collector_note": txn.collector_note,
             }
         )
-    return items
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 async def confirm_transaction(
@@ -277,17 +309,36 @@ async def reject_transaction(
 async def get_client_history(
     db: AsyncSession,
     client_id: uuid.UUID,
-) -> list[Transaction]:
-    """Get all transactions for a specific client."""
+    status_filter: str | None = None,
+    skip: int = 0,
+    limit: int = 20,
+) -> dict:
+    """Get transactions for a specific client (paginated)."""
+    where_clauses = [
+        Transaction.client_id == client_id,
+        Transaction.status != "AUTO_REJECTED",
+    ]
+    if status_filter:
+        where_clauses.append(Transaction.status == status_filter)
+
+    # Count total
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Transaction)
+        .where(*where_clauses)
+    )
+    total = count_result.scalar_one()
+
+    # Fetch page
     result = await db.execute(
         select(Transaction)
-        .where(
-            Transaction.client_id == client_id,
-            Transaction.status != "AUTO_REJECTED",
-        )
+        .where(*where_clauses)
         .order_by(Transaction.submitted_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
-    return list(result.scalars().all())
+    items = list(result.scalars().all())
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
 async def _get_client_for_collector(

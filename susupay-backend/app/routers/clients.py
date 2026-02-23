@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,9 +8,18 @@ from app.database import get_db
 from app.dependencies import get_current_client
 from app.models.client import Client
 from app.models.transaction import Transaction
-from app.schemas.client import ClientBalance, ClientProfile, ClientUpdateRequest, GroupMemberItem
+from app.schemas.client import (
+    ClientBalance,
+    ClientProfile,
+    ClientScheduleSummary,
+    ClientUpdateRequest,
+    GroupMemberItem,
+)
+from app.schemas.collector import RotationScheduleResponse
+from app.schemas.pagination import PaginatedResponse
 from app.schemas.transaction import ClientTransactionItem
 from app.services.balance_service import get_client_balance
+from app.services.schedule_service import get_client_schedule_summary, get_rotation_schedule
 from app.services.transaction_service import get_client_history
 
 router = APIRouter(prefix="/api/v1/clients", tags=["clients"])
@@ -49,6 +58,14 @@ async def get_balance(
     return ClientBalance(**balance_data)
 
 
+@router.get("/me/schedule", response_model=ClientScheduleSummary)
+async def get_my_schedule(
+    client: Client = Depends(get_current_client),
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_client_schedule_summary(db, client)
+
+
 @router.get("/me/group", response_model=list[GroupMemberItem])
 async def get_group_members(
     client: Client = Depends(get_current_client),
@@ -57,13 +74,17 @@ async def get_group_members(
     """See all members in your susu group with their balances."""
     # Get all active clients in the same collector group
     clients_result = await db.execute(
-        select(Client.id, Client.full_name, Client.daily_amount).where(
+        select(Client.id, Client.full_name, Client.daily_amount, Client.payout_position).where(
             Client.collector_id == client.collector_id,
             Client.is_active == True,  # noqa: E712
         )
     )
     clients_map = {
-        row.id: {"full_name": row.full_name, "daily_amount": row.daily_amount}
+        row.id: {
+            "full_name": row.full_name,
+            "daily_amount": row.daily_amount,
+            "payout_position": row.payout_position,
+        }
         for row in clients_result.all()
     }
 
@@ -92,6 +113,13 @@ async def get_group_members(
     )
     txn_counts_map = {row[0]: row[1] for row in txn_counts_result.all()}
 
+    # Get payout dates from schedule if available
+    schedule = await get_rotation_schedule(db, client.collector_id)
+    payout_date_map: dict[uuid.UUID, object] = {}
+    if schedule:
+        for entry in schedule["entries"]:
+            payout_date_map[entry["client_id"]] = entry["payout_date"]
+
     members = []
     for client_id, info in clients_map.items():
         bal = balances_map.get(client_id, {"total_deposits": 0, "balance": 0})
@@ -102,6 +130,8 @@ async def get_group_members(
             total_deposits=bal["total_deposits"],
             transaction_count=txn_counts_map.get(client_id, 0),
             balance=bal["balance"],
+            payout_position=info["payout_position"],
+            payout_date=payout_date_map.get(client_id),
         ))
 
     # Sort by name
@@ -109,9 +139,26 @@ async def get_group_members(
     return members
 
 
-@router.get("/me/group/{member_id}/history", response_model=list[ClientTransactionItem])
+@router.get("/me/group/schedule", response_model=RotationScheduleResponse)
+async def get_group_schedule(
+    client: Client = Depends(get_current_client),
+    db: AsyncSession = Depends(get_db),
+):
+    schedule = await get_rotation_schedule(db, client.collector_id)
+    if schedule is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No rotation schedule configured for your group yet.",
+        )
+    return schedule
+
+
+@router.get("/me/group/{member_id}/history", response_model=PaginatedResponse[ClientTransactionItem])
 async def get_member_history(
     member_id: uuid.UUID,
+    status_filter: str | None = Query(None, alias="status"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     client: Client = Depends(get_current_client),
     db: AsyncSession = Depends(get_db),
 ):
@@ -128,5 +175,6 @@ async def get_member_history(
     if not member:
         raise HTTPException(status_code=404, detail="Member not found in your group")
 
-    txns = await get_client_history(db, member_id)
-    return txns
+    return await get_client_history(
+        db, member_id, status_filter=status_filter, skip=skip, limit=limit
+    )

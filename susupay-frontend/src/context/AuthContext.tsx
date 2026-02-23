@@ -32,6 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (decoded) {
       setRole(decoded.role);
       setUserId(decoded.sub);
+    } else {
+      // Clear stale expired tokens so Axios doesn't attach dead credentials
+      clearTokens();
     }
     setIsLoading(false);
   }, []);

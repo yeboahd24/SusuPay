@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import Boolean, Date, DateTime, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,6 +20,8 @@ class Collector(Base):
     pin_hash: Mapped[str | None] = mapped_column(String(255))
     invite_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     push_token: Mapped[str | None] = mapped_column(String(500))
+    cycle_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    payout_interval_days: Mapped[int] = mapped_column(Integer, server_default="7", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
