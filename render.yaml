@@ -1,0 +1,105 @@
+services:
+  # Backend API
+  - type: web
+    name: susupay-api
+    runtime: docker
+    dockerfilePath: ./susupay-backend/Dockerfile
+    dockerContext: ./susupay-backend
+    region: frankfurt
+    plan: starter
+    healthCheckPath: /api/v1/health
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_SYNC
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: '["https://susupay-frontend.onrender.com"]'
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: HUBTEL_CLIENT_ID
+        sync: false
+      - key: HUBTEL_CLIENT_SECRET
+        sync: false
+      - key: HUBTEL_SMS_SENDER
+        value: SusuPay
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_CLAIMS_EMAIL
+        value: admin@susupay.com
+
+  # Celery Worker + Beat
+  - type: worker
+    name: susupay-worker
+    runtime: docker
+    dockerfilePath: ./susupay-backend/Dockerfile
+    dockerContext: ./susupay-backend
+    dockerCommand: celery -A app.workers.celery_app worker --beat --loglevel=info
+    region: frankfurt
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: HUBTEL_CLIENT_ID
+        sync: false
+      - key: HUBTEL_CLIENT_SECRET
+        sync: false
+      - key: HUBTEL_SMS_SENDER
+        value: SusuPay
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_CLAIMS_EMAIL
+        value: admin@susupay.com
+
+  # Frontend Static Site
+  - type: web
+    name: susupay-frontend
+    runtime: static
+    rootDir: susupay-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /sw-push.js
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://susupay-api.onrender.com
+      - key: VITE_VAPID_PUBLIC_KEY
+        sync: false
