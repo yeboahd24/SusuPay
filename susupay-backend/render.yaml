@@ -3,13 +3,9 @@ services:
   - type: web
     name: susupay-api
     runtime: docker
-    rootDir: susupay-backend
-    dockerfilePath: susupay-backend/Dockerfile
-    dockerContext: susupay-backend
     region: frankfurt
     plan: starter
     healthCheckPath: /api/v1/health
-    preDeployCommand: alembic upgrade head
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -48,9 +44,6 @@ services:
   - type: worker
     name: susupay-worker
     runtime: docker
-    rootDir: susupay-backend
-    dockerfilePath: susupay-backend/Dockerfile
-    dockerContext: susupay-backend
     dockerCommand: celery -A app.workers.celery_app worker --beat --loglevel=info
     region: frankfurt
     plan: starter
@@ -81,27 +74,3 @@ services:
         sync: false
       - key: VAPID_CLAIMS_EMAIL
         value: admin@susupay.com
-
-  # Frontend Static Site
-  - type: web
-    name: susupay-frontend
-    runtime: static
-    rootDir: susupay-frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    headers:
-      - path: /sw.js
-        name: Cache-Control
-        value: no-cache
-      - path: /sw-push.js
-        name: Cache-Control
-        value: no-cache
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        value: https://susupay-api.onrender.com
-      - key: VITE_VAPID_PUBLIC_KEY
-        sync: false

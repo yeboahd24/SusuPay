@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: susupay-frontend
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /sw-push.js
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://susupay-api.onrender.com
+      - key: VITE_VAPID_PUBLIC_KEY
+        sync: false
