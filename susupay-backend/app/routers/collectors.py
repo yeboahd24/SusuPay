@@ -17,7 +17,7 @@ from app.schemas.collector import (
     RotationOrderRequest,
     RotationScheduleResponse,
 )
-from app.services.balance_service import get_all_client_balances
+from app.services.balance_service import get_all_client_balances, get_client_balance
 from app.services.schedule_service import get_rotation_schedule, set_rotation_order
 
 router = APIRouter(prefix="/api/v1/collectors", tags=["collectors"])
@@ -168,6 +168,33 @@ async def update_schedule(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return {"detail": "Rotation order updated"}
+
+
+@router.get("/me/clients/{client_id}", response_model=ClientListItem)
+async def get_client(
+    client_id: str,
+    collector: Collector = Depends(get_current_collector),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Client).where(Client.id == client_id, Client.collector_id == collector.id)
+    )
+    client = result.scalar_one_or_none()
+    if client is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+
+    bal = await get_client_balance(db, client.id)
+
+    return ClientListItem(
+        id=client.id,
+        full_name=client.full_name,
+        phone=client.phone,
+        daily_amount=client.daily_amount,
+        is_active=client.is_active,
+        joined_at=client.joined_at,
+        balance=bal.get("balance", 0),
+        payout_position=client.payout_position,
+    )
 
 
 @router.patch("/me/clients/{client_id}", response_model=ClientListItem)
