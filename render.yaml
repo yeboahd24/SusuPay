@@ -3,8 +3,8 @@ services:
   - type: web
     name: susupay-api
     runtime: docker
-    dockerfilePath: ./susupay-backend/Dockerfile
-    dockerContext: ./susupay-backend
+    rootDir: susupay-backend
+    dockerfilePath: ./Dockerfile
     region: frankfurt
     plan: starter
     healthCheckPath: /api/v1/health
@@ -47,8 +47,8 @@ services:
   - type: worker
     name: susupay-worker
     runtime: docker
-    dockerfilePath: ./susupay-backend/Dockerfile
-    dockerContext: ./susupay-backend
+    rootDir: susupay-backend
+    dockerfilePath: ./Dockerfile
     dockerCommand: celery -A app.workers.celery_app worker --beat --loglevel=info
     region: frankfurt
     plan: starter
