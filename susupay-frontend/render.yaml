@@ -17,6 +17,6 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://susupay-api.onrender.com
+        value: https://susupay.onrender.com
       - key: VITE_VAPID_PUBLIC_KEY
         sync: false

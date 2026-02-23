@@ -16,7 +16,7 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
-        value: '["https://susupay-frontend.onrender.com"]'
+        value: '["https://susupay-1.onrender.com"]'
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
