@@ -194,11 +194,11 @@ async def notify_daily_reminder(
     client_push_token: str | None,
     client_phone: str,
     collector_name: str,
-    daily_amount: float,
+    contribution_amount: float,
 ) -> str:
     return await notify(
         client_push_token,
         client_phone,
         "Daily Reminder",
-        f"Remember to send GHS {daily_amount:.2f} to {collector_name} today",
+        f"Remember to send GHS {contribution_amount:.2f} to {collector_name} today",
     )

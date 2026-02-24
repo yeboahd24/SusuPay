@@ -22,6 +22,7 @@ import { ClientProfile } from './pages/client/Profile';
 import { MemberHistory } from './pages/client/MemberHistory';
 import { Reports } from './pages/collector/Reports';
 import { CollectorSchedule } from './pages/collector/Schedule';
+import { CollectorPayouts } from './pages/collector/Payouts';
 import { ClientSchedule } from './pages/client/Schedule';
 
 export function App() {
@@ -44,6 +45,7 @@ export function App() {
           <Route path="/collector/clients" element={<Clients />} />
           <Route path="/collector/clients/:clientId" element={<ClientDetail />} />
           <Route path="/collector/schedule" element={<CollectorSchedule />} />
+          <Route path="/collector/payouts" element={<CollectorPayouts />} />
           <Route path="/collector/reports" element={<Reports />} />
           <Route path="/collector/profile" element={<Profile />} />
         </Route>

@@ -54,11 +54,19 @@ async def approve_payout(
     payout_id: uuid.UUID,
     collector_id: uuid.UUID,
 ) -> Payout:
-    """Collector approves a REQUESTED payout."""
+    """Collector approves a REQUESTED payout. Re-checks balance before approving."""
     payout = await _get_payout_for_collector(db, payout_id, collector_id)
 
     if payout.status != "REQUESTED":
         raise ValueError(f"Cannot approve payout with status {payout.status}")
+
+    # Re-check balance — it may have changed since the request was made
+    balance_info = await get_client_balance(db, payout.client_id)
+    available = balance_info["balance"]
+    if payout.amount > available:
+        raise ValueError(
+            f"Insufficient balance. Client has GHS {available} but payout is GHS {payout.amount}"
+        )
 
     payout.status = "APPROVED"
     payout.approved_at = datetime.now(timezone.utc)
@@ -91,11 +99,19 @@ async def complete_payout(
     payout_id: uuid.UUID,
     collector_id: uuid.UUID,
 ) -> Payout:
-    """Collector marks an APPROVED payout as COMPLETED."""
+    """Collector marks an APPROVED payout as COMPLETED. Balance is deducted at this point."""
     payout = await _get_payout_for_collector(db, payout_id, collector_id)
 
     if payout.status != "APPROVED":
         raise ValueError(f"Cannot complete payout with status {payout.status}")
+
+    # Final balance check before deducting
+    balance_info = await get_client_balance(db, payout.client_id)
+    available = balance_info["balance"]
+    if payout.amount > available:
+        raise ValueError(
+            f"Insufficient balance. Client has GHS {available} but payout is GHS {payout.amount}"
+        )
 
     payout.status = "COMPLETED"
     payout.completed_at = datetime.now(timezone.utc)

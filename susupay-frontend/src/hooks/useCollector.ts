@@ -3,6 +3,8 @@ import api from '../api/axios';
 import { API } from '../api/endpoints';
 import type { CollectorProfile, CollectorUpdateRequest, CollectorDashboard, RotationScheduleResponse, RotationOrderRequest } from '../types/collector';
 import type { ClientListItem, ClientUpdateRequest } from '../types/client';
+import type { CollectorAnalytics } from '../types/analytics';
+import type { PayoutListItem, PayoutDeclineRequest } from '../types/payout';
 
 export function useDashboard() {
   return useQuery<CollectorDashboard>({
@@ -53,6 +55,7 @@ export function useUpdateProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collector-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -106,6 +109,69 @@ export function useSetRotationOrder() {
       queryClient.invalidateQueries({ queryKey: ['collector-schedule'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useCollectorPayouts(status?: string) {
+  return useQuery<{ items: PayoutListItem[]; total: number }>({
+    queryKey: ['collector-payouts', status],
+    queryFn: async () => {
+      const { data } = await api.get(API.PAYOUTS.LIST, {
+        params: { ...(status && status !== 'ALL' ? { status } : {}), limit: 100 },
+      });
+      return data;
+    },
+  });
+}
+
+export function useApprovePayout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payoutId: string) => {
+      const { data } = await api.post(API.PAYOUTS.APPROVE(payoutId));
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collector-payouts'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useDeclinePayout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ payoutId, payload }: { payoutId: string; payload: PayoutDeclineRequest }) => {
+      const { data } = await api.post(API.PAYOUTS.DECLINE(payoutId), payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collector-payouts'] });
+    },
+  });
+}
+
+export function useCompletePayout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payoutId: string) => {
+      const { data } = await api.post(API.PAYOUTS.COMPLETE(payoutId));
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collector-payouts'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useCollectorAnalytics() {
+  return useQuery<CollectorAnalytics>({
+    queryKey: ['collector-analytics'],
+    queryFn: async () => {
+      const { data } = await api.get(API.COLLECTORS.ANALYTICS);
+      return data;
     },
   });
 }

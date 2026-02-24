@@ -19,10 +19,16 @@ export function Profile() {
   const [editError, setEditError] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // Contribution settings
+  const [editContribAmount, setEditContribAmount] = useState('');
+  const [editContribFreq, setEditContribFreq] = useState('DAILY');
+
   function startEdit() {
     if (!profile) return;
     setEditName(profile.full_name);
     setEditMomo(profile.momo_number ?? '');
+    setEditContribAmount(profile.contribution_amount);
+    setEditContribFreq(profile.contribution_frequency);
     setEditError('');
     setEditing(true);
   }
@@ -39,9 +45,19 @@ export function Profile() {
       setEditError('MoMo number must be a valid Ghana phone (e.g. 0244000000)');
       return;
     }
+    const amount = parseFloat(editContribAmount);
+    if (isNaN(amount) || amount < 0) {
+      setEditError('Contribution amount must be a non-negative number');
+      return;
+    }
 
     updateProfile.mutate(
-      { full_name: name, ...(momo ? { momo_number: momo } : {}) },
+      {
+        full_name: name,
+        ...(momo ? { momo_number: momo } : {}),
+        contribution_amount: amount,
+        contribution_frequency: editContribFreq,
+      },
       {
         onSuccess: () => setEditing(false),
         onError: (err) => {
@@ -59,6 +75,8 @@ export function Profile() {
       setTimeout(() => setCopied(false), 2000);
     });
   }
+
+  const freqLabel = (f: string) => f === 'DAILY' ? 'Daily' : f === 'WEEKLY' ? 'Weekly' : 'Monthly';
 
   if (isLoading) {
     return <LoadingSpinner className="mt-20" />;
@@ -84,6 +102,27 @@ export function Profile() {
         <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
           <Input label="Full Name" value={editName} onChange={(e) => setEditName(e.target.value)} />
           <Input label="MoMo Number" value={editMomo} onChange={(e) => setEditMomo(e.target.value)} placeholder="0244000000" />
+          <Input
+            label="Contribution Amount (GHS)"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={editContribAmount}
+            onChange={(e) => setEditContribAmount(e.target.value)}
+          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contribution Frequency</label>
+            <select
+              value={editContribFreq}
+              onChange={(e) => setEditContribFreq(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-primary-500 focus:ring-primary-500"
+            >
+              <option value="DAILY">Daily</option>
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+            </select>
+          </div>
           {editError && <p className="text-sm text-red-600">{editError}</p>}
           <div className="flex gap-2">
             <Button size="sm" onClick={handleSave} loading={updateProfile.isPending}>Save</Button>
@@ -106,6 +145,12 @@ export function Profile() {
             <div className="flex justify-between">
               <span className="text-gray-500">MoMo Number</span>
               <span className="font-medium text-gray-900">{profile.momo_number ?? 'Not set'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Contribution</span>
+              <span className="font-medium text-gray-900">
+                GHS {parseFloat(profile.contribution_amount).toFixed(2)} / {freqLabel(profile.contribution_frequency)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Member Since</span>

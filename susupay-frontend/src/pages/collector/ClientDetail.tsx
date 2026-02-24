@@ -20,7 +20,6 @@ export function ClientDetail() {
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
-  const [editAmount, setEditAmount] = useState('');
   const [editError, setEditError] = useState('');
   const [showDeactivate, setShowDeactivate] = useState(false);
 
@@ -29,7 +28,6 @@ export function ClientDetail() {
   function startEdit() {
     if (!client) return;
     setEditName(client.full_name);
-    setEditAmount(client.daily_amount);
     setEditError('');
     setEditing(true);
   }
@@ -43,14 +41,9 @@ export function ClientDetail() {
       setEditError('Name is required');
       return;
     }
-    const amount = parseFloat(editAmount);
-    if (isNaN(amount) || amount <= 0) {
-      setEditError('Daily amount must be a positive number');
-      return;
-    }
 
     updateClient.mutate(
-      { clientId, payload: { full_name: name, daily_amount: amount } },
+      { clientId, payload: { full_name: name } },
       {
         onSuccess: () => setEditing(false),
         onError: (err) => {
@@ -83,6 +76,10 @@ export function ClientDetail() {
     );
   }
 
+  const periodPaid = parseFloat(client.period_paid ?? '0');
+  const periodExpected = parseFloat(client.period_expected ?? '0');
+  const periodPct = periodExpected > 0 ? Math.min((periodPaid / periodExpected) * 100, 100) : 0;
+
   return (
     <div className="p-4 space-y-6">
       {/* Back link */}
@@ -99,11 +96,45 @@ export function ClientDetail() {
         <p className="text-3xl font-bold text-primary-800">GHS {client.balance}</p>
       </div>
 
+      {/* Period status card */}
+      {periodExpected > 0 && (
+        <div className={`rounded-xl border p-4 ${
+          client.period_status === 'PAID' || client.period_status === 'OVERPAID'
+            ? 'bg-green-50 border-green-200'
+            : client.period_status === 'PARTIAL'
+            ? 'bg-amber-50 border-amber-200'
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-gray-700">Period Payment</p>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              client.period_status === 'PAID' || client.period_status === 'OVERPAID'
+                ? 'bg-green-100 text-green-700'
+                : client.period_status === 'PARTIAL'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-red-100 text-red-700'
+            }`}>
+              {client.period_status}
+            </span>
+          </div>
+          <div className="w-full bg-white/60 rounded-full h-2.5 mb-2">
+            <div
+              className={`h-2.5 rounded-full transition-all ${
+                client.period_status === 'PAID' || client.period_status === 'OVERPAID' ? 'bg-green-500' : client.period_status === 'PARTIAL' ? 'bg-amber-500' : 'bg-red-400'
+              }`}
+              style={{ width: `${periodPct}%` }}
+            />
+          </div>
+          <p className="text-sm text-gray-600">
+            GHS {periodPaid.toFixed(2)} of GHS {periodExpected.toFixed(2)}
+          </p>
+        </div>
+      )}
+
       {/* Client info */}
       {editing ? (
         <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
           <Input label="Full Name" value={editName} onChange={(e) => setEditName(e.target.value)} />
-          <Input label="Daily Amount (GHS)" type="number" step="0.01" min="0" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
           {editError && <p className="text-sm text-red-600">{editError}</p>}
           <div className="flex gap-2">
             <Button size="sm" onClick={handleSave} loading={updateClient.isPending}>Save</Button>
@@ -126,17 +157,11 @@ export function ClientDetail() {
               Edit
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-4 pt-2 text-sm">
-            <div>
-              <p className="text-gray-500">Daily Amount</p>
-              <p className="font-medium text-gray-900">GHS {client.daily_amount}</p>
-            </div>
-            <div>
-              <p className="text-gray-500">Joined</p>
-              <p className="font-medium text-gray-900">
-                {new Date(client.joined_at).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </p>
-            </div>
+          <div className="pt-2 text-sm">
+            <p className="text-gray-500">Joined</p>
+            <p className="font-medium text-gray-900">
+              {new Date(client.joined_at).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
           </div>
         </div>
       )}

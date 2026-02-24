@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select, text
@@ -7,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_client
 from app.models.client import Client
+from app.models.collector import Collector
 from app.models.transaction import Transaction
+from app.schemas.analytics import ClientAnalytics
 from app.schemas.client import (
     ClientBalance,
     ClientProfile,
@@ -18,6 +21,11 @@ from app.schemas.client import (
 from app.schemas.collector import RotationScheduleResponse
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.transaction import ClientTransactionItem
+from app.services.analytics_service import (
+    classify_payment,
+    get_current_period,
+    get_period_payments,
+)
 from app.services.balance_service import get_client_balance
 from app.services.schedule_service import get_client_schedule_summary, get_rotation_schedule
 from app.services.transaction_service import get_client_history
@@ -26,8 +34,27 @@ router = APIRouter(prefix="/api/v1/clients", tags=["clients"])
 
 
 @router.get("/me", response_model=ClientProfile)
-async def get_profile(client: Client = Depends(get_current_client)):
-    return client
+async def get_profile(
+    client: Client = Depends(get_current_client),
+    db: AsyncSession = Depends(get_db),
+):
+    # Enrich with collector's contribution settings
+    result = await db.execute(
+        select(Collector.contribution_amount, Collector.contribution_frequency).where(
+            Collector.id == client.collector_id
+        )
+    )
+    row = result.one()
+    return ClientProfile(
+        id=client.id,
+        collector_id=client.collector_id,
+        full_name=client.full_name,
+        phone=client.phone,
+        is_active=client.is_active,
+        joined_at=client.joined_at,
+        contribution_amount=Decimal(str(row.contribution_amount)),
+        contribution_frequency=row.contribution_frequency,
+    )
 
 
 @router.patch("/me", response_model=ClientProfile)
@@ -38,13 +65,28 @@ async def update_profile(
 ):
     if body.full_name is not None:
         client.full_name = body.full_name
-    if body.daily_amount is not None:
-        client.daily_amount = body.daily_amount
     if body.push_token is not None:
         client.push_token = body.push_token
     await db.commit()
     await db.refresh(client)
-    return client
+
+    # Enrich with collector's contribution settings
+    result = await db.execute(
+        select(Collector.contribution_amount, Collector.contribution_frequency).where(
+            Collector.id == client.collector_id
+        )
+    )
+    row = result.one()
+    return ClientProfile(
+        id=client.id,
+        collector_id=client.collector_id,
+        full_name=client.full_name,
+        phone=client.phone,
+        is_active=client.is_active,
+        joined_at=client.joined_at,
+        contribution_amount=Decimal(str(row.contribution_amount)),
+        contribution_frequency=row.contribution_frequency,
+    )
 
 
 @router.get("/me/balance", response_model=ClientBalance)
@@ -66,15 +108,35 @@ async def get_my_schedule(
     return await get_client_schedule_summary(db, client)
 
 
+@router.get("/me/analytics", response_model=ClientAnalytics)
+async def get_client_analytics_endpoint(
+    client: Client = Depends(get_current_client),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.analytics_service import get_client_analytics
+
+    return await get_client_analytics(db, client)
+
+
 @router.get("/me/group", response_model=list[GroupMemberItem])
 async def get_group_members(
     client: Client = Depends(get_current_client),
     db: AsyncSession = Depends(get_db),
 ):
     """See all members in your susu group with their balances."""
+    # Get collector's contribution settings
+    coll_result = await db.execute(
+        select(Collector.contribution_amount, Collector.contribution_frequency).where(
+            Collector.id == client.collector_id
+        )
+    )
+    coll_row = coll_result.one()
+    expected = Decimal(str(coll_row.contribution_amount))
+    frequency = coll_row.contribution_frequency
+
     # Get all active clients in the same collector group
     clients_result = await db.execute(
-        select(Client.id, Client.full_name, Client.daily_amount, Client.payout_position).where(
+        select(Client.id, Client.full_name, Client.payout_position).where(
             Client.collector_id == client.collector_id,
             Client.is_active == True,  # noqa: E712
         )
@@ -82,7 +144,6 @@ async def get_group_members(
     clients_map = {
         row.id: {
             "full_name": row.full_name,
-            "daily_amount": row.daily_amount,
             "payout_position": row.payout_position,
         }
         for row in clients_result.all()
@@ -120,18 +181,24 @@ async def get_group_members(
         for entry in schedule["entries"]:
             payout_date_map[entry["client_id"]] = entry["payout_date"]
 
+    # Period payments
+    start, end, _ = get_current_period(frequency)
+    payments = await get_period_payments(db, client.collector_id, start, end)
+
     members = []
     for client_id, info in clients_map.items():
         bal = balances_map.get(client_id, {"total_deposits": 0, "balance": 0})
+        paid = payments.get(client_id, Decimal("0.00"))
         members.append(GroupMemberItem(
             id=client_id,
             full_name=info["full_name"],
-            daily_amount=info["daily_amount"],
             total_deposits=bal["total_deposits"],
             transaction_count=txn_counts_map.get(client_id, 0),
             balance=bal["balance"],
             payout_position=info["payout_position"],
             payout_date=payout_date_map.get(client_id),
+            period_paid=paid,
+            period_status=classify_payment(paid, expected),
         ))
 
     # Sort by name
@@ -163,7 +230,6 @@ async def get_member_history(
     db: AsyncSession = Depends(get_db),
 ):
     """View a group member's transaction history (same collector group only)."""
-    # Verify target member belongs to the same collector group
     result = await db.execute(
         select(Client).where(
             Client.id == member_id,

@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -9,6 +10,7 @@ from app.dependencies import get_current_collector
 from app.models.client import Client
 from app.models.collector import Collector
 from app.models.transaction import Transaction
+from app.schemas.analytics import CollectorAnalytics
 from app.schemas.client import ClientListItem
 from app.schemas.collector import (
     CollectorDashboard,
@@ -16,6 +18,11 @@ from app.schemas.collector import (
     CollectorUpdateRequest,
     RotationOrderRequest,
     RotationScheduleResponse,
+)
+from app.services.analytics_service import (
+    classify_payment,
+    get_current_period,
+    get_period_payments,
 )
 from app.services.balance_service import get_all_client_balances, get_client_balance
 from app.services.schedule_service import get_rotation_schedule, set_rotation_order
@@ -44,6 +51,10 @@ async def update_profile(
         collector.cycle_start_date = body.cycle_start_date
     if body.payout_interval_days is not None:
         collector.payout_interval_days = body.payout_interval_days
+    if body.contribution_amount is not None:
+        collector.contribution_amount = body.contribution_amount
+    if body.contribution_frequency is not None:
+        collector.contribution_frequency = body.contribution_frequency
     await db.commit()
     await db.refresh(collector)
     return collector
@@ -88,7 +99,6 @@ async def get_dashboard(
     schedule = await get_rotation_schedule(db, collector.id)
     if schedule:
         today = date.today()
-        # Find current or next upcoming entry
         current = next((e for e in schedule["entries"] if e["is_current"]), None)
         if current:
             next_payout_client = current["full_name"]
@@ -99,14 +109,61 @@ async def get_dashboard(
                 next_payout_client = upcoming["full_name"]
                 next_payout_date = upcoming["payout_date"]
 
+    # Period progress
+    expected = Decimal(str(collector.contribution_amount))
+    frequency = collector.contribution_frequency
+    start, end, period_label = get_current_period(frequency)
+
+    active_count = active_q.scalar_one()
+    # Get active client IDs for period classification
+    active_result = await db.execute(
+        select(Client.id).where(
+            Client.collector_id == collector.id,
+            Client.is_active == True,  # noqa: E712
+        )
+    )
+    active_ids = {row[0] for row in active_result.all()}
+
+    payments = await get_period_payments(db, collector.id, start, end)
+
+    paid_count = 0
+    partial_count = 0
+    unpaid_count = 0
+    amount_collected = Decimal("0.00")
+
+    for cid in active_ids:
+        paid = payments.get(cid, Decimal("0.00"))
+        amount_collected += paid
+        s = classify_payment(paid, expected)
+        if s in ("PAID", "OVERPAID"):
+            paid_count += 1
+        elif s == "PARTIAL":
+            partial_count += 1
+        else:
+            unpaid_count += 1
+
+    amount_expected = expected * len(active_ids)
+    collection_rate = (
+        float(amount_collected / amount_expected * 100) if amount_expected > 0 else 0.0
+    )
+
     return CollectorDashboard(
         collector_id=collector.id,
         total_clients=total_q.scalar_one(),
-        active_clients=active_q.scalar_one(),
+        active_clients=active_count,
         pending_transactions=pending_q.scalar_one(),
         total_confirmed_today=float(confirmed_q.scalar_one()),
         next_payout_client=next_payout_client,
         next_payout_date=next_payout_date,
+        contribution_amount=expected,
+        contribution_frequency=frequency,
+        period_label=period_label,
+        paid_count=paid_count,
+        partial_count=partial_count,
+        unpaid_count=unpaid_count,
+        amount_collected=amount_collected,
+        amount_expected=amount_expected,
+        collection_rate=round(collection_rate, 1),
     )
 
 
@@ -126,19 +183,37 @@ async def list_clients(
     balances = await get_all_client_balances(db, collector.id)
     balance_map = {b["client_id"]: b["balance"] for b in balances}
 
+    # Period status
+    expected = Decimal(str(collector.contribution_amount))
+    frequency = collector.contribution_frequency
+    start, end, _ = get_current_period(frequency)
+    payments = await get_period_payments(db, collector.id, start, end)
+
     return [
         ClientListItem(
             id=c.id,
             full_name=c.full_name,
             phone=c.phone,
-            daily_amount=c.daily_amount,
             is_active=c.is_active,
             joined_at=c.joined_at,
             balance=balance_map.get(c.id, 0),
             payout_position=c.payout_position,
+            period_paid=payments.get(c.id, Decimal("0.00")),
+            period_expected=expected,
+            period_status=classify_payment(payments.get(c.id, Decimal("0.00")), expected),
         )
         for c in clients
     ]
+
+
+@router.get("/me/analytics", response_model=CollectorAnalytics)
+async def get_analytics(
+    collector: Collector = Depends(get_current_collector),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.analytics_service import get_collector_analytics
+
+    return await get_collector_analytics(db, collector)
 
 
 @router.get("/me/schedule", response_model=RotationScheduleResponse)
@@ -185,15 +260,24 @@ async def get_client(
 
     bal = await get_client_balance(db, client.id)
 
+    # Period status
+    expected = Decimal(str(collector.contribution_amount))
+    frequency = collector.contribution_frequency
+    start, end, _ = get_current_period(frequency)
+    payments = await get_period_payments(db, collector.id, start, end)
+    paid = payments.get(client.id, Decimal("0.00"))
+
     return ClientListItem(
         id=client.id,
         full_name=client.full_name,
         phone=client.phone,
-        daily_amount=client.daily_amount,
         is_active=client.is_active,
         joined_at=client.joined_at,
         balance=bal.get("balance", 0),
         payout_position=client.payout_position,
+        period_paid=paid,
+        period_expected=expected,
+        period_status=classify_payment(paid, expected),
     )
 
 
@@ -220,7 +304,6 @@ async def update_client(
         id=client.id,
         full_name=client.full_name,
         phone=client.phone,
-        daily_amount=client.daily_amount,
         is_active=client.is_active,
         joined_at=client.joined_at,
     )

@@ -47,6 +47,10 @@ class CollectorSetPinResponse(BaseModel):
 class CollectorSetMomoRequest(BaseModel):
     verification_token: str
     momo_number: str = Field(..., pattern=r"^0\d{9}$")
+    contribution_amount: float = Field(..., gt=0, description="Daily/weekly/monthly contribution in GHS")
+    contribution_frequency: str = Field(
+        "DAILY", pattern=r"^(DAILY|WEEKLY|MONTHLY)$", description="How often clients pay"
+    )
 
 
 class CollectorSetMomoResponse(BaseModel):
@@ -96,4 +100,3 @@ class ClientJoinRequest(BaseModel):
     invite_code: str
     full_name: str = Field(..., min_length=2, max_length=120)
     phone: str = Field(..., pattern=r"^0\d{9}$")
-    daily_amount: float = Field(..., gt=0)

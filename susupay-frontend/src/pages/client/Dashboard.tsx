@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useClientBalance, useMyTransactions, useGroupMembers, useMySchedule } from '../../hooks/useClient';
+import { useClientBalance, useMyTransactions, useGroupMembers, useMySchedule, useClientAnalytics } from '../../hooks/useClient';
 import { Badge, statusBadgeColor } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -9,6 +9,7 @@ export function ClientDashboard() {
   const transactions = useMyTransactions();
   const group = useGroupMembers();
   const schedule = useMySchedule();
+  const analytics = useClientAnalytics();
 
   if (balance.isLoading) {
     return <LoadingSpinner className="mt-20" />;
@@ -16,9 +17,54 @@ export function ClientDashboard() {
 
   const recent = (transactions.data?.pages.flatMap((p) => p.items) ?? []).slice(0, 5);
   const members = group.data ?? [];
+  const ana = analytics.data;
+
+  const periodPaid = parseFloat(ana?.period_status.paid ?? '0');
+  const periodExpected = parseFloat(ana?.period_status.expected ?? '0');
+  const periodRemaining = parseFloat(ana?.period_status.remaining ?? '0');
+  const periodPct = periodExpected > 0 ? Math.min((periodPaid / periodExpected) * 100, 100) : 0;
+  const periodStatus = ana?.period_status.status ?? 'UNPAID';
 
   return (
     <div className="p-4 space-y-6">
+      {/* Period status card */}
+      {ana && periodExpected > 0 && (
+        <div className={`rounded-xl border p-4 ${
+          periodStatus === 'PAID' || periodStatus === 'OVERPAID'
+            ? 'bg-green-50 border-green-200'
+            : periodStatus === 'PARTIAL'
+            ? 'bg-amber-50 border-amber-200'
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-gray-700">{ana.period_status.period_label}</p>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              periodStatus === 'PAID' || periodStatus === 'OVERPAID'
+                ? 'bg-green-100 text-green-700'
+                : periodStatus === 'PARTIAL'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-red-100 text-red-700'
+            }`}>
+              {periodStatus}
+            </span>
+          </div>
+          <div className="w-full bg-white/60 rounded-full h-3 mb-2">
+            <div
+              className={`h-3 rounded-full transition-all ${
+                periodStatus === 'PAID' || periodStatus === 'OVERPAID' ? 'bg-green-500' : periodStatus === 'PARTIAL' ? 'bg-amber-500' : 'bg-red-400'
+              }`}
+              style={{ width: `${periodPct}%` }}
+            />
+          </div>
+          <p className="text-sm text-gray-700">
+            GHS {periodPaid.toFixed(2)} of GHS {periodExpected.toFixed(2)}
+            {periodRemaining > 0 && (
+              <span className="text-gray-500"> — GHS {periodRemaining.toFixed(2)} remaining</span>
+            )}
+          </p>
+        </div>
+      )}
+
       {/* Balance card */}
       <div className="bg-primary-50 rounded-xl border border-primary-200 p-6 text-center">
         <p className="text-sm text-primary-600 font-medium">Your Balance</p>
@@ -30,6 +76,24 @@ export function ClientDashboard() {
           <span>Payouts: GHS {balance.data?.total_payouts ?? '0.00'}</span>
         </div>
       </div>
+
+      {/* Streak + monthly compliance + group progress */}
+      {ana && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+            <p className="text-2xl font-bold text-primary-600">{ana.payment_streak}</p>
+            <p className="text-xs text-gray-500">Streak</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+            <p className="text-2xl font-bold text-gray-900">{ana.monthly_compliance.toFixed(0)}%</p>
+            <p className="text-xs text-gray-500">Monthly</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+            <p className="text-2xl font-bold text-gray-900">{ana.group_paid_count}/{ana.group_total_count}</p>
+            <p className="text-xs text-gray-500">Group Paid</p>
+          </div>
+        </div>
+      )}
 
       {/* Payout schedule card */}
       {schedule.data?.has_schedule && (
@@ -105,35 +169,44 @@ export function ClientDashboard() {
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto_20px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500">
+            <div className="grid grid-cols-[1fr_auto_auto_20px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500">
               <span>Name</span>
-              <span className="text-right">Txns</span>
-              <span className="text-right">Deposits</span>
+              <span className="text-right">Period</span>
               <span className="text-right">Balance</span>
               <span />
             </div>
             {/* Rows */}
-            {members.map((m) => {
-              const hasDeposits = parseFloat(m.total_deposits) > 0;
-              return (
-                <Link
-                  key={m.id}
-                  to={`/client/group/${m.id}`}
-                  className="grid grid-cols-[1fr_auto_auto_auto_20px] gap-2 px-4 py-3 border-b border-gray-100 last:border-b-0 items-center hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${hasDeposits ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <span className="text-sm text-gray-900 truncate">{m.full_name}</span>
-                  </div>
-                  <span className="text-sm text-gray-500 text-right tabular-nums">{m.transaction_count}</span>
-                  <span className="text-sm text-gray-600 text-right">GHS {m.total_deposits}</span>
-                  <span className="text-sm font-medium text-gray-900 text-right">GHS {m.balance}</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </Link>
-              );
-            })}
+            {members.map((m) => (
+              <Link
+                key={m.id}
+                to={`/client/group/${m.id}`}
+                className="grid grid-cols-[1fr_auto_auto_20px] gap-2 px-4 py-3 border-b border-gray-100 last:border-b-0 items-center hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${
+                    m.period_status === 'PAID' || m.period_status === 'OVERPAID'
+                      ? 'bg-green-500'
+                      : m.period_status === 'PARTIAL'
+                      ? 'bg-amber-500'
+                      : 'bg-red-400'
+                  }`} />
+                  <span className="text-sm text-gray-900 truncate">{m.full_name}</span>
+                </div>
+                <span className={`text-xs font-medium text-right ${
+                  m.period_status === 'PAID' || m.period_status === 'OVERPAID'
+                    ? 'text-green-600'
+                    : m.period_status === 'PARTIAL'
+                    ? 'text-amber-600'
+                    : 'text-red-500'
+                }`}>
+                  {m.period_status === 'PAID' || m.period_status === 'OVERPAID' ? 'Paid' : m.period_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}
+                </span>
+                <span className="text-sm font-medium text-gray-900 text-right">GHS {m.balance}</span>
+                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+            ))}
           </div>
         )}
       </div>

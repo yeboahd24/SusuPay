@@ -83,13 +83,35 @@ async def test_collector_registration_full_flow(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_collector_duplicate_phone(client: AsyncClient):
-    """Cannot register two collectors with the same phone."""
+async def test_collector_duplicate_phone_incomplete_allows_reregister(client: AsyncClient):
+    """Incomplete registration (no PIN) allows re-registration with same phone."""
     phone = "0244000002"
     await client.post(
         "/api/v1/auth/collector/register",
         json={"full_name": "Kofi Mensah", "phone": phone},
     )
+    # Same phone, no PIN set yet — should succeed (replace stale record)
+    resp = await client.post(
+        "/api/v1/auth/collector/register",
+        json={"full_name": "Another Name", "phone": phone},
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_collector_duplicate_phone_complete_blocks(client: AsyncClient):
+    """Fully registered collector (with PIN) blocks duplicate phone."""
+    phone = "0244000099"
+    await client.post(
+        "/api/v1/auth/collector/register",
+        json={"full_name": "Kofi Mensah", "phone": phone},
+    )
+    verification_token = create_verification_token(phone, "REGISTER")
+    await client.post(
+        "/api/v1/auth/collector/set-pin",
+        json={"verification_token": verification_token, "pin": "1234", "pin_confirm": "1234"},
+    )
+    # Now try registering with the same phone — should be blocked
     resp = await client.post(
         "/api/v1/auth/collector/register",
         json={"full_name": "Another Name", "phone": phone},
@@ -216,7 +238,6 @@ async def test_client_join(client: AsyncClient):
             "invite_code": invite_code,
             "full_name": "Kofi Client",
             "phone": "0244100001",
-            "daily_amount": 20.00,
         },
     )
     assert resp.status_code == 200
@@ -243,7 +264,6 @@ async def test_client_join_duplicate(client: AsyncClient):
         "invite_code": invite_code,
         "full_name": "Dup Client",
         "phone": "0244100002",
-        "daily_amount": 10.00,
     }
     await client.post("/api/v1/auth/client/join", json=join_body)
     resp = await client.post("/api/v1/auth/client/join", json=join_body)
@@ -369,7 +389,6 @@ async def test_multi_tenant_isolation(client: AsyncClient):
             "invite_code": invite_a,
             "full_name": "Client of A",
             "phone": "0244200001",
-            "daily_amount": 15.00,
         },
     )
 
@@ -423,7 +442,6 @@ async def test_client_profile_and_balance(client: AsyncClient):
             "invite_code": invite_code,
             "full_name": "Balance Client",
             "phone": "0244300001",
-            "daily_amount": 25.00,
         },
     )
     client_token = join_resp.json()["access_token"]

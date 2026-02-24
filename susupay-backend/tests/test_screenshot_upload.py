@@ -49,7 +49,6 @@ async def _create_client(
             "invite_code": invite_code,
             "full_name": "Upload Client",
             "phone": phone,
-            "daily_amount": 20.00,
         },
     )
     client_token = resp.json()["access_token"]

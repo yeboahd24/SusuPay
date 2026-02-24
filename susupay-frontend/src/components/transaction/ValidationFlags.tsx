@@ -8,10 +8,13 @@ interface ValidationFlagsProps {
 export function ValidationFlags({ flags }: ValidationFlagsProps) {
   const [expanded, setExpanded] = useState(false);
 
+  // Hide if no flags, or all flags have empty/missing check names (e.g. client-submitted txns)
   if (!flags || flags.length === 0) return null;
+  const meaningful = flags.filter((f) => f.check && f.check !== '—');
+  if (meaningful.length === 0) return null;
 
-  const passedCount = flags.filter((f) => f.passed).length;
-  const summary = `${passedCount}/${flags.length} checks passed`;
+  const passedCount = meaningful.filter((f) => f.passed).length;
+  const summary = `${passedCount}/${meaningful.length} checks passed`;
 
   return (
     <div>
@@ -26,7 +29,7 @@ export function ValidationFlags({ flags }: ValidationFlagsProps) {
       </button>
       {expanded && (
         <div className="mt-2 space-y-1.5 pl-1">
-          {flags.map((flag) => (
+          {meaningful.map((flag) => (
             <div key={flag.check} className="flex items-start gap-2 text-xs">
               {flag.passed ? (
                 <svg className="w-4 h-4 text-green-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

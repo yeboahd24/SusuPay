@@ -10,16 +10,16 @@ class ClientProfile(BaseModel):
     collector_id: uuid.UUID
     full_name: str
     phone: str
-    daily_amount: Decimal
     is_active: bool
     joined_at: datetime
+    contribution_amount: Decimal = Decimal("0.00")
+    contribution_frequency: str = "DAILY"
 
     model_config = {"from_attributes": True}
 
 
 class ClientUpdateRequest(BaseModel):
     full_name: str | None = Field(None, min_length=2, max_length=120)
-    daily_amount: float | None = Field(None, gt=0)
     push_token: str | None = None
 
 
@@ -35,11 +35,13 @@ class ClientListItem(BaseModel):
     id: uuid.UUID
     full_name: str
     phone: str
-    daily_amount: Decimal
     is_active: bool
     joined_at: datetime
     balance: Decimal = Decimal("0.00")
     payout_position: int | None = None
+    period_paid: Decimal = Decimal("0.00")
+    period_expected: Decimal = Decimal("0.00")
+    period_status: str = "UNPAID"
 
     model_config = {"from_attributes": True}
 
@@ -48,12 +50,13 @@ class GroupMemberItem(BaseModel):
     """What group members can see about each other — no phone for privacy."""
     id: uuid.UUID
     full_name: str
-    daily_amount: Decimal
     total_deposits: Decimal
     transaction_count: int
     balance: Decimal
     payout_position: int | None = None
     payout_date: date | None = None
+    period_paid: Decimal = Decimal("0.00")
+    period_status: str = "UNPAID"
 
 
 class ClientScheduleSummary(BaseModel):

@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +13,8 @@ class CollectorProfile(BaseModel):
     invite_code: str
     cycle_start_date: date | None = None
     payout_interval_days: int
+    contribution_amount: Decimal
+    contribution_frequency: str
     is_active: bool
     created_at: datetime
 
@@ -24,6 +27,8 @@ class CollectorUpdateRequest(BaseModel):
     push_token: str | None = None
     cycle_start_date: date | None = None
     payout_interval_days: int | None = Field(None, ge=1, le=365)
+    contribution_amount: float | None = Field(None, ge=0)
+    contribution_frequency: str | None = Field(None, pattern=r"^(DAILY|WEEKLY|MONTHLY)$")
 
 
 class CollectorDashboard(BaseModel):
@@ -34,6 +39,15 @@ class CollectorDashboard(BaseModel):
     total_confirmed_today: float
     next_payout_client: str | None = None
     next_payout_date: date | None = None
+    contribution_amount: Decimal = Decimal("0.00")
+    contribution_frequency: str = "DAILY"
+    period_label: str = ""
+    paid_count: int = 0
+    partial_count: int = 0
+    unpaid_count: int = 0
+    amount_collected: Decimal = Decimal("0.00")
+    amount_expected: Decimal = Decimal("0.00")
+    collection_rate: float = 0.0
 
 
 class RotationPositionItem(BaseModel):

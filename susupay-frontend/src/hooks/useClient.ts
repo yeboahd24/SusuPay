@@ -7,6 +7,7 @@ import type { ClientSMSSubmitRequest, SubmitResponse } from '../types/transactio
 import type { PayoutRequest, PayoutResponse, ClientPayoutItem } from '../types/payout';
 import type { RotationScheduleResponse } from '../types/collector';
 import type { PaginatedResponse } from '../types/common';
+import type { ClientAnalytics } from '../types/analytics';
 
 export function useClientBalance() {
   return useQuery<ClientBalance>({
@@ -96,6 +97,7 @@ export function useClientSubmitSms() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['client-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['client-analytics'] });
     },
   });
 }
@@ -115,6 +117,7 @@ export function useClientSubmitScreenshot() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['client-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['client-analytics'] });
     },
   });
 }
@@ -168,5 +171,15 @@ export function useGroupSchedule() {
       return data;
     },
     retry: false,
+  });
+}
+
+export function useClientAnalytics() {
+  return useQuery<ClientAnalytics>({
+    queryKey: ['client-analytics'],
+    queryFn: async () => {
+      const { data } = await api.get(API.CLIENTS.ANALYTICS);
+      return data;
+    },
   });
 }

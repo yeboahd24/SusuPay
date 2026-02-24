@@ -9,6 +9,7 @@ export const API = {
     COLLECTOR_SET_MOMO: `${BASE}/auth/collector/set-momo`,
     COLLECTOR_LOGIN: `${BASE}/auth/collector/login`,
     COLLECTOR_RESET_PIN: `${BASE}/auth/collector/reset-pin`,
+    CHECK_PHONE: `${BASE}/auth/check-phone`,
     INVITE_INFO: (code: string) => `${BASE}/auth/invite/${code}`,
     CLIENT_JOIN: `${BASE}/auth/client/join`,
     CLIENT_LOGIN: `${BASE}/auth/client/login`,
@@ -20,6 +21,7 @@ export const API = {
     CLIENTS: `${BASE}/collectors/me/clients`,
     CLIENT: (id: string) => `${BASE}/collectors/me/clients/${id}`,
     SCHEDULE: `${BASE}/collectors/me/schedule`,
+    ANALYTICS: `${BASE}/collectors/me/analytics`,
   },
   CLIENTS: {
     ME: `${BASE}/clients/me`,
@@ -28,6 +30,7 @@ export const API = {
     MEMBER_HISTORY: (id: string) => `${BASE}/clients/me/group/${id}/history`,
     SCHEDULE: `${BASE}/clients/me/schedule`,
     GROUP_SCHEDULE: `${BASE}/clients/me/group/schedule`,
+    ANALYTICS: `${BASE}/clients/me/analytics`,
   },
   TRANSACTIONS: {
     SUBMIT_SMS: `${BASE}/transactions/submit/sms`,

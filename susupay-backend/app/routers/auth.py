@@ -113,10 +113,15 @@ async def verify_otp_endpoint(body: OTPVerifyRequest, db: AsyncSession = Depends
 async def collector_register(body: CollectorRegisterRequest, db: AsyncSession = Depends(get_db)):
     existing = await get_collector_by_phone(db, body.phone)
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Phone number already registered",
-        )
+        if existing.pin_hash is not None:
+            # Fully registered — block duplicate
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Phone number already registered",
+            )
+        # Incomplete registration (no PIN set) — replace stale record
+        await db.delete(existing)
+        await db.flush()
 
     invite_code = generate_invite_code(body.full_name)
     collector = Collector(
@@ -162,6 +167,8 @@ async def collector_set_momo(body: CollectorSetMomoRequest, db: AsyncSession = D
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collector not found")
 
     collector.momo_number = body.momo_number
+    collector.contribution_amount = body.contribution_amount
+    collector.contribution_frequency = body.contribution_frequency
     await db.commit()
 
     return CollectorSetMomoResponse(
@@ -217,6 +224,49 @@ async def collector_reset_pin(body: CollectorResetPinRequest, db: AsyncSession =
     )
 
 
+# --- Phone Check ---
+
+
+@router.get("/check-phone")
+async def check_phone(
+    phone: str,
+    role: str,
+    invite_code: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Check if a phone number is already registered.
+    - role=COLLECTOR: checks collectors table (fully registered = has pin_hash)
+    - role=CLIENT: checks clients table scoped to invite_code's collector
+    Returns {available: bool, message: str}
+    """
+    if role == "COLLECTOR":
+        collector = await get_collector_by_phone(db, phone)
+        if collector:
+            if collector.pin_hash is not None:
+                return {"available": False, "message": "This phone number is already registered as a collector"}
+            return {"available": False, "message": "This phone number has a pending registration"}
+        return {"available": True, "message": ""}
+
+    if role == "CLIENT":
+        if not invite_code:
+            return {"available": True, "message": ""}
+        collector = await get_collector_by_invite_code(db, invite_code)
+        if not collector:
+            return {"available": True, "message": ""}
+        result = await db.execute(
+            select(Client).where(
+                Client.collector_id == collector.id,
+                Client.phone == phone,
+            )
+        )
+        if result.scalar_one_or_none():
+            return {"available": False, "message": "This phone number is already registered in this group"}
+        return {"available": True, "message": ""}
+
+    return {"available": True, "message": ""}
+
+
 # --- Invite ---
 
 
@@ -255,7 +305,6 @@ async def client_join(body: ClientJoinRequest, db: AsyncSession = Depends(get_db
         collector_id=collector.id,
         full_name=body.full_name,
         phone=body.phone,
-        daily_amount=body.daily_amount,
     )
     db.add(client)
     await db.commit()

@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../api/axios';
@@ -21,7 +21,9 @@ export function ClientJoin() {
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [dailyAmount, setDailyAmount] = useState('');
+  const [phoneWarning, setPhoneWarning] = useState('');
+  const [checkingPhone, setCheckingPhone] = useState(false);
+  const phoneCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -49,6 +51,34 @@ export function ClientJoin() {
     return () => { cancelled = true; };
   }, [inviteCode]);
 
+  // Real-time phone check with debounce
+  useEffect(() => {
+    setPhoneWarning('');
+    if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+
+    if (!isValidGhanaPhone(phone) || !inviteCode) return;
+
+    setCheckingPhone(true);
+    phoneCheckTimer.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get(API.AUTH.CHECK_PHONE, {
+          params: { phone, role: 'CLIENT', invite_code: inviteCode },
+        });
+        if (!data.available) {
+          setPhoneWarning(data.message);
+        }
+      } catch {
+        // Silently fail
+      } finally {
+        setCheckingPhone(false);
+      }
+    }, 500);
+
+    return () => {
+      if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+    };
+  }, [phone, inviteCode]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -61,9 +91,8 @@ export function ClientJoin() {
       setError('Enter a valid 10-digit Ghana phone number');
       return;
     }
-    const amount = parseFloat(dailyAmount);
-    if (!amount || amount <= 0) {
-      setError('Enter a valid daily amount');
+    if (phoneWarning) {
+      setError(phoneWarning);
       return;
     }
 
@@ -73,7 +102,6 @@ export function ClientJoin() {
         invite_code: inviteCode!,
         full_name: fullName.trim(),
         phone,
-        daily_amount: amount,
       };
       const { data } = await api.post<TokenResponse>(API.AUTH.CLIENT_JOIN, payload);
       login(data.access_token, data.refresh_token);
@@ -122,22 +150,18 @@ export function ClientJoin() {
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Ama Serwaa"
           />
-          <PhoneInput
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-          <Input
-            label="Daily Contribution (GHS)"
-            type="number"
-            inputMode="decimal"
-            min="0.01"
-            step="0.01"
-            value={dailyAmount}
-            onChange={(e) => setDailyAmount(e.target.value)}
-            placeholder="5.00"
-          />
+          <div>
+            <PhoneInput
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              error={phoneWarning || undefined}
+            />
+            {checkingPhone && isValidGhanaPhone(phone) && (
+              <p className="mt-1 text-xs text-gray-400">Checking availability...</p>
+            )}
+          </div>
           {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-          <Button type="submit" fullWidth loading={loading}>
+          <Button type="submit" fullWidth loading={loading} disabled={!!phoneWarning}>
             Join Group
           </Button>
         </form>

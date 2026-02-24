@@ -159,8 +159,9 @@ async def _daily_reminder_async() -> int:
         # Find active clients who have NOT submitted a payment today
         result = await session.execute(
             text("""
-                SELECT c.id, c.phone, c.push_token, c.daily_amount,
-                       co.full_name AS collector_name
+                SELECT c.id, c.phone, c.push_token,
+                       co.full_name AS collector_name,
+                       co.contribution_amount
                 FROM clients c
                 JOIN collectors co ON co.id = c.collector_id
                 WHERE c.is_active = true
@@ -182,7 +183,7 @@ async def _daily_reminder_async() -> int:
             row.push_token,
             row.phone,
             row.collector_name,
-            float(row.daily_amount),
+            float(row.contribution_amount),
         )
         count += 1
 

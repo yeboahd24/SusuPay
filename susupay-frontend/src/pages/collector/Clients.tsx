@@ -87,7 +87,29 @@ export function Clients() {
                     {!client.is_active && <Badge color="red">Inactive</Badge>}
                   </div>
                   <p className="text-sm text-gray-500">{client.phone}</p>
-                  <p className="text-xs text-gray-400 mt-1">GHS {client.daily_amount}/day</p>
+                  {/* Period status */}
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`w-2 h-2 rounded-full ${
+                      client.period_status === 'PAID' || client.period_status === 'OVERPAID'
+                        ? 'bg-green-500'
+                        : client.period_status === 'PARTIAL'
+                        ? 'bg-amber-500'
+                        : 'bg-red-400'
+                    }`} />
+                    <span className={`text-xs font-medium ${
+                      client.period_status === 'PAID' || client.period_status === 'OVERPAID'
+                        ? 'text-green-600'
+                        : client.period_status === 'PARTIAL'
+                        ? 'text-amber-600'
+                        : 'text-red-500'
+                    }`}>
+                      {client.period_status === 'PAID' || client.period_status === 'OVERPAID'
+                        ? `Paid GHS ${parseFloat(client.period_paid).toFixed(2)}`
+                        : client.period_status === 'PARTIAL'
+                        ? `GHS ${parseFloat(client.period_paid).toFixed(2)} of ${parseFloat(client.period_expected).toFixed(2)}`
+                        : 'Unpaid'}
+                    </span>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Balance</p>

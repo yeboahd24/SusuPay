@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { API } from '../../api/endpoints';
@@ -30,6 +30,9 @@ export function CollectorRegister() {
   // Step 1: Info
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneWarning, setPhoneWarning] = useState('');
+  const [checkingPhone, setCheckingPhone] = useState(false);
+  const phoneCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Step 2: OTP
   const [otp, setOtp] = useState('');
@@ -42,13 +45,43 @@ export function CollectorRegister() {
   // Debug OTP display
   const [debugCode, setDebugCode] = useState('');
 
-  // Step 4: MoMo
+  // Step 4: MoMo + Contribution
   const [momoNumber, setMomoNumber] = useState('');
+  const [contributionAmount, setContributionAmount] = useState('');
+  const [contributionFrequency, setContributionFrequency] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
 
   // Step 5: Success
   const [inviteCode, setInviteCode] = useState('');
 
   const stepNumber = { info: 1, otp: 2, pin: 3, momo: 4, success: 5 }[step];
+
+  // Real-time phone check with debounce
+  useEffect(() => {
+    setPhoneWarning('');
+    if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+
+    if (!isValidGhanaPhone(phone)) return;
+
+    setCheckingPhone(true);
+    phoneCheckTimer.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get(API.AUTH.CHECK_PHONE, {
+          params: { phone, role: 'COLLECTOR' },
+        });
+        if (!data.available) {
+          setPhoneWarning(data.message);
+        }
+      } catch {
+        // Silently fail — submit will catch the real error
+      } finally {
+        setCheckingPhone(false);
+      }
+    }, 500);
+
+    return () => {
+      if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+    };
+  }, [phone]);
 
   const handleInfo = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,6 +93,10 @@ export function CollectorRegister() {
     }
     if (!isValidGhanaPhone(phone)) {
       setError('Enter a valid 10-digit Ghana phone number');
+      return;
+    }
+    if (phoneWarning) {
+      setError(phoneWarning);
       return;
     }
 
@@ -151,12 +188,19 @@ export function CollectorRegister() {
       setError('Enter a valid 10-digit MoMo number');
       return;
     }
+    const amount = parseFloat(contributionAmount);
+    if (!contributionAmount || isNaN(amount) || amount <= 0) {
+      setError('Enter a valid contribution amount');
+      return;
+    }
 
     setLoading(true);
     try {
       const payload: CollectorSetMomoRequest = {
         verification_token: verificationToken,
         momo_number: momoNumber,
+        contribution_amount: amount,
+        contribution_frequency: contributionFrequency,
       };
       const { data } = await api.post<CollectorSetMomoResponse>(API.AUTH.COLLECTOR_SET_MOMO, payload);
       setInviteCode(data.invite_code);
@@ -196,12 +240,18 @@ export function CollectorRegister() {
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Kwame Mensah"
             />
-            <PhoneInput
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+            <div>
+              <PhoneInput
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                error={phoneWarning || undefined}
+              />
+              {checkingPhone && isValidGhanaPhone(phone) && (
+                <p className="mt-1 text-xs text-gray-400">Checking availability...</p>
+              )}
+            </div>
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-            <Button type="submit" fullWidth loading={loading}>
+            <Button type="submit" fullWidth loading={loading} disabled={!!phoneWarning}>
               Continue
             </Button>
           </form>
@@ -240,13 +290,37 @@ export function CollectorRegister() {
         {step === 'momo' && (
           <form onSubmit={handleMomo} className="space-y-5">
             <p className="text-sm text-gray-600">
-              Enter the MoMo number where clients will send payments. This is used to validate transactions.
+              Set up your group's payment details.
             </p>
             <PhoneInput
               label="MoMo Number"
               value={momoNumber}
               onChange={(e) => setMomoNumber(e.target.value)}
             />
+            <Input
+              label="Contribution Amount (GHS)"
+              type="number"
+              inputMode="decimal"
+              placeholder="e.g. 50"
+              value={contributionAmount}
+              onChange={(e) => setContributionAmount(e.target.value)}
+              min="0.01"
+              step="0.01"
+            />
+            <div className="w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Payment Frequency
+              </label>
+              <select
+                value={contributionFrequency}
+                onChange={(e) => setContributionFrequency(e.target.value as 'DAILY' | 'WEEKLY' | 'MONTHLY')}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-primary-500 focus:ring-primary-500"
+              >
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+              </select>
+            </div>
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
             <Button type="submit" fullWidth loading={loading}>
               Complete Registration

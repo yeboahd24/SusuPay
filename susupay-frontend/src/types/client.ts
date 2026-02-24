@@ -3,14 +3,14 @@ export interface ClientProfile {
   collector_id: string;
   full_name: string;
   phone: string;
-  daily_amount: string;
   is_active: boolean;
   joined_at: string;
+  contribution_amount: string;
+  contribution_frequency: string;
 }
 
 export interface ClientUpdateRequest {
   full_name?: string;
-  daily_amount?: number;
   push_token?: string;
 }
 
@@ -26,22 +26,25 @@ export interface ClientListItem {
   id: string;
   full_name: string;
   phone: string;
-  daily_amount: string;
   is_active: boolean;
   joined_at: string;
   balance: string;
   payout_position: number | null;
+  period_paid: string;
+  period_expected: string;
+  period_status: string;
 }
 
 export interface GroupMemberItem {
   id: string;
   full_name: string;
-  daily_amount: string;
   total_deposits: string;
   transaction_count: number;
   balance: string;
   payout_position: number | null;
   payout_date: string | null;
+  period_paid: string;
+  period_status: string;
 }
 
 export interface ClientScheduleSummary {

@@ -43,6 +43,8 @@ export interface CollectorSetPinResponse {
 export interface CollectorSetMomoRequest {
   verification_token: string;
   momo_number: string;
+  contribution_amount: number;
+  contribution_frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
 }
 
 export interface CollectorSetMomoResponse {
@@ -71,7 +73,6 @@ export interface ClientJoinRequest {
   invite_code: string;
   full_name: string;
   phone: string;
-  daily_amount: number;
 }
 
 export interface TokenResponse {

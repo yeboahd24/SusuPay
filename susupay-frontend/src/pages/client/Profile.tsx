@@ -42,6 +42,8 @@ export function ClientProfile() {
     );
   }
 
+  const freqLabel = (f: string) => f === 'DAILY' ? 'Daily' : f === 'WEEKLY' ? 'Weekly' : 'Monthly';
+
   if (isLoading) {
     return <LoadingSpinner className="mt-20" />;
   }
@@ -84,8 +86,10 @@ export function ClientProfile() {
               <span className="font-medium text-gray-900">{profile.phone}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Daily Amount</span>
-              <span className="font-medium text-gray-900">GHS {profile.daily_amount}</span>
+              <span className="text-gray-500">Contribution</span>
+              <span className="font-medium text-gray-900">
+                GHS {parseFloat(profile.contribution_amount).toFixed(2)} / {freqLabel(profile.contribution_frequency)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Status</span>
