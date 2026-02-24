@@ -11,7 +11,6 @@ import { Modal } from '../../components/ui/Modal';
 import { Badge, statusBadgeColor } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import type { PayoutStatus } from '../../types/payout';
 import type { AxiosError } from 'axios';
 
 const tabs: { label: string; value: string }[] = [
