@@ -75,7 +75,10 @@ MAIN_MENU = (
 
 
 async def handle_ussd(db: AsyncSession, request: USSDRequest) -> USSDResponse:
-    r = await _get_redis()
+    try:
+        r = await _get_redis()
+    except Exception:
+        return _release(request.SessionId, "Service temporarily unavailable. Please try again later.")
     try:
         if request.Type == "Initiation":
             return await _handle_initiation(db, r, request)
