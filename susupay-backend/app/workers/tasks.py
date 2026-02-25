@@ -19,6 +19,14 @@ from app.workers.celery_app import celery
 logger = logging.getLogger(__name__)
 
 
+def safe_delay(task, *args, **kwargs):
+    """Call task.delay() but silently skip if the broker (Redis) is unavailable."""
+    try:
+        return task.delay(*args, **kwargs)
+    except Exception:
+        logger.warning("Celery broker unavailable — skipping task %s", task.name)
+
+
 def _run_async(coro):
     """Run an async coroutine from a sync Celery task."""
     loop = asyncio.new_event_loop()

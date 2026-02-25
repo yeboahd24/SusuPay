@@ -27,6 +27,7 @@ from app.workers.tasks import (
     notify_payout_approved_task,
     notify_payout_declined_task,
     notify_payout_requested_task,
+    safe_delay,
 )
 
 router = APIRouter(prefix="/api/v1/payouts", tags=["payouts"])
@@ -52,7 +53,7 @@ async def request_payout_endpoint(
     # Notify collector about payout request
     collector = await db.get(Collector, client.collector_id)
     if collector:
-        notify_payout_requested_task.delay(
+        safe_delay(notify_payout_requested_task,
             collector.push_token,
             collector.phone,
             client.full_name,
@@ -105,7 +106,7 @@ async def approve_payout_endpoint(
     # Notify client about approval
     client_obj = await db.get(Client, payout.client_id)
     if client_obj:
-        notify_payout_approved_task.delay(
+        safe_delay(notify_payout_approved_task,
             client_obj.push_token,
             client_obj.phone,
             float(payout.amount),
@@ -130,7 +131,7 @@ async def decline_payout_endpoint(
     # Notify client about decline
     client_obj = await db.get(Client, payout.client_id)
     if client_obj:
-        notify_payout_declined_task.delay(
+        safe_delay(notify_payout_declined_task,
             client_obj.push_token,
             client_obj.phone,
             body.reason,

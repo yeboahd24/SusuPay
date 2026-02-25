@@ -39,6 +39,7 @@ from app.workers.tasks import (
     notify_payment_confirmed_task,
     notify_payment_queried_task,
     notify_payment_submitted_task,
+    safe_delay,
 )
 
 router = APIRouter(prefix="/api/v1/transactions", tags=["transactions"])
@@ -73,10 +74,10 @@ async def submit_sms_endpoint(
         # Notify client about duplicate
         client_obj = await db.get(Client, body.client_id)
         if client_obj:
-            notify_duplicate_task.delay(client_obj.push_token, client_obj.phone)
+            safe_delay(notify_duplicate_task,client_obj.push_token, client_obj.phone)
     elif txn.status == "PENDING":
         # Notify collector about new submission
-        notify_payment_submitted_task.delay(
+        safe_delay(notify_payment_submitted_task,
             collector.push_token,
             collector.phone,
             (await db.get(Client, body.client_id)).full_name,
@@ -134,7 +135,7 @@ async def submit_screenshot_endpoint(
     # Notify collector about new submission
     client_obj = await db.get(Client, client_id)
     if client_obj:
-        notify_payment_submitted_task.delay(
+        safe_delay(notify_payment_submitted_task,
             collector.push_token,
             collector.phone,
             client_obj.full_name,
@@ -195,7 +196,7 @@ async def confirm(
         from app.services.balance_service import get_client_balance
 
         balance_info = await get_client_balance(db, client_obj.id)
-        notify_payment_confirmed_task.delay(
+        safe_delay(notify_payment_confirmed_task,
             client_obj.push_token,
             client_obj.phone,
             float(txn.amount),
@@ -225,7 +226,7 @@ async def query(
     # Notify client about query
     client_obj = await db.get(Client, txn.client_id)
     if client_obj:
-        notify_payment_queried_task.delay(
+        safe_delay(notify_payment_queried_task,
             client_obj.push_token, client_obj.phone, body.note
         )
 
@@ -283,7 +284,7 @@ async def client_submit_sms_endpoint(
         # Notify collector about new submission
         collector_obj = await db.get(Collector, client.collector_id)
         if collector_obj:
-            notify_payment_submitted_task.delay(
+            safe_delay(notify_payment_submitted_task,
                 collector_obj.push_token,
                 collector_obj.phone,
                 client.full_name,
@@ -340,7 +341,7 @@ async def client_submit_screenshot_endpoint(
     # Notify collector about new submission
     collector_obj = await db.get(Collector, client.collector_id)
     if collector_obj:
-        notify_payment_submitted_task.delay(
+        safe_delay(notify_payment_submitted_task,
             collector_obj.push_token,
             collector_obj.phone,
             client.full_name,
