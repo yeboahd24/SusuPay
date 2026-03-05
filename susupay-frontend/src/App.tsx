@@ -28,6 +28,10 @@ import { Achievements } from './pages/client/Achievements';
 import { Leaderboard } from './pages/client/Leaderboard';
 import { Goals } from './pages/client/Goals';
 import { Referrals } from './pages/collector/Referrals';
+import { Announcements } from './pages/collector/Announcements';
+import { EmergencyWithdrawal } from './pages/client/EmergencyWithdrawal';
+import { RateCollector } from './pages/client/RateCollector';
+import { ClientAnnouncements } from './pages/client/Announcements';
 
 export function App() {
   return (
@@ -52,6 +56,7 @@ export function App() {
           <Route path="/collector/payouts" element={<CollectorPayouts />} />
           <Route path="/collector/reports" element={<Reports />} />
           <Route path="/collector/referrals" element={<Referrals />} />
+          <Route path="/collector/announcements" element={<Announcements />} />
           <Route path="/collector/profile" element={<Profile />} />
         </Route>
       </Route>
@@ -68,6 +73,9 @@ export function App() {
           <Route path="/client/achievements" element={<Achievements />} />
           <Route path="/client/leaderboard" element={<Leaderboard />} />
           <Route path="/client/goals" element={<Goals />} />
+          <Route path="/client/emergency" element={<EmergencyWithdrawal />} />
+          <Route path="/client/rate" element={<RateCollector />} />
+          <Route path="/client/announcements" element={<ClientAnnouncements />} />
           <Route path="/client/profile" element={<ClientProfile />} />
         </Route>
       </Route>

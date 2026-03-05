@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import type { NavItem } from './BottomNav';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { OnboardingTutorial } from '../OnboardingTutorial';
 
 const navItems: NavItem[] = [
   {
@@ -59,6 +60,7 @@ export function CollectorLayout() {
 
   return (
     <>
+      <OnboardingTutorial role="COLLECTOR" />
       <AppShell navItems={navItems} />
       {showFab && (
         <button

@@ -67,6 +67,7 @@ export interface CollectorResetPinRequest {
 export interface ClientLoginRequest {
   phone: string;
   code: string;
+  client_id?: string;
 }
 
 export interface ClientJoinRequest {

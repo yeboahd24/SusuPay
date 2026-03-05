@@ -9,7 +9,9 @@ from app.models.client import Client
 from app.models.collector import Collector
 from app.models.otp_code import OTPCode
 from app.schemas.auth import (
+    ClientGroupOption,
     ClientJoinRequest,
+    ClientLoginMultiGroupResponse,
     ClientLoginRequest,
     CollectorLoginRequest,
     CollectorRegisterRequest,
@@ -319,7 +321,7 @@ async def client_join(body: ClientJoinRequest, db: AsyncSession = Depends(get_db
 # --- Client Login ---
 
 
-@router.post("/client/login", response_model=TokenResponse)
+@router.post("/client/login")
 async def client_login(body: ClientLoginRequest, db: AsyncSession = Depends(get_db)):
     # Verify OTP inline (client login is phone + OTP in one step)
     now = datetime.now(timezone.utc)
@@ -341,15 +343,81 @@ async def client_login(body: ClientLoginRequest, db: AsyncSession = Depends(get_
 
     otp.used = True
 
-    # Find client by phone
+    # Find all active clients for this phone
     result = await db.execute(
         select(Client).where(Client.phone == body.phone, Client.is_active == True)  # noqa: E712
     )
-    client = result.scalar_one_or_none()
-    if client is None:
+    clients = result.scalars().all()
+    if not clients:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
 
+    # If client_id provided (group selection), pick that one
+    if body.client_id:
+        client = next((c for c in clients if c.id == body.client_id), None)
+        if not client:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found in your groups")
+        await db.commit()
+        return TokenResponse(
+            access_token=create_access_token(client.id, "CLIENT"),
+            refresh_token=create_refresh_token(client.id, "CLIENT"),
+        )
+
+    # Single group — login directly
+    if len(clients) == 1:
+        await db.commit()
+        return TokenResponse(
+            access_token=create_access_token(clients[0].id, "CLIENT"),
+            refresh_token=create_refresh_token(clients[0].id, "CLIENT"),
+        )
+
+    # Multiple groups — return group list + selection token
+    groups = []
+    for c in clients:
+        collector_result = await db.execute(
+            select(Collector.full_name, Collector.invite_code).where(Collector.id == c.collector_id)
+        )
+        row = collector_result.one()
+        groups.append(ClientGroupOption(
+            client_id=c.id,
+            collector_name=row.full_name,
+            group_invite_code=row.invite_code,
+        ))
+
     await db.commit()
+
+    # Create a short-lived selection token so the user can pick a group without re-entering OTP
+    selection_token = create_verification_token(body.phone, "GROUP_SELECT")
+
+    return ClientLoginMultiGroupResponse(
+        groups=groups,
+        selection_token=selection_token,
+    )
+
+
+@router.post("/client/select-group", response_model=TokenResponse)
+async def client_select_group(
+    client_id: str,
+    selection_token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """After multi-group login, pick which group to enter."""
+    import uuid as _uuid
+    payload = decode_token(selection_token)
+    if payload is None or payload.get("type") != "verification" or payload.get("purpose") != "GROUP_SELECT":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired selection token")
+
+    phone = payload["phone"]
+    try:
+        cid = _uuid.UUID(client_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid client_id")
+
+    result = await db.execute(
+        select(Client).where(Client.id == cid, Client.phone == phone, Client.is_active == True)  # noqa: E712
+    )
+    client = result.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
 
     return TokenResponse(
         access_token=create_access_token(client.id, "CLIENT"),

@@ -76,6 +76,20 @@ class CollectorResetPinRequest(BaseModel):
 class ClientLoginRequest(BaseModel):
     phone: str = Field(..., pattern=r"^0\d{9}$")
     code: str = Field(..., min_length=6, max_length=6)
+    client_id: uuid.UUID | None = None  # optional: pick specific group
+
+
+class ClientGroupOption(BaseModel):
+    client_id: uuid.UUID
+    collector_name: str
+    group_invite_code: str
+
+
+class ClientLoginMultiGroupResponse(BaseModel):
+    """Returned when the phone belongs to multiple groups."""
+    requires_group_selection: bool = True
+    groups: list[ClientGroupOption]
+    selection_token: str  # short-lived token to pick a group
 
 
 # --- Token ---

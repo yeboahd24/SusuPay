@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useClientBalance, useMyTransactions, useGroupMembers, useMySchedule, useClientAnalytics } from '../../hooks/useClient';
+import { useAnnouncementFeed } from '../../hooks/useAnnouncements';
 import { Badge, statusBadgeColor } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -12,6 +13,7 @@ export function ClientDashboard() {
   const group = useGroupMembers();
   const schedule = useMySchedule();
   const analytics = useClientAnalytics();
+  const announcementsFeed = useAnnouncementFeed();
 
   if (balance.isLoading) {
     return <LoadingSpinner className="mt-20" />;
@@ -66,6 +68,21 @@ export function ClientDashboard() {
           </p>
         </div>
       )}
+
+      {/* Pinned announcements */}
+      {announcementsFeed.data?.filter((a) => a.is_pinned).slice(0, 2).map((a) => (
+        <Link key={a.id} to="/client/announcements" className="block bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <div className="flex items-start gap-2">
+            <svg className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09" />
+            </svg>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-blue-900 truncate">{a.title}</p>
+              <p className="text-xs text-blue-700 mt-0.5 line-clamp-2">{a.body}</p>
+            </div>
+          </div>
+        </Link>
+      ))}
 
       {/* Balance card */}
       <div className="bg-primary-50 rounded-xl border border-primary-200 p-6 text-center">

@@ -13,6 +13,7 @@ export const API = {
     INVITE_INFO: (code: string) => `${BASE}/auth/invite/${code}`,
     CLIENT_JOIN: `${BASE}/auth/client/join`,
     CLIENT_LOGIN: `${BASE}/auth/client/login`,
+    CLIENT_SELECT_GROUP: `${BASE}/auth/client/select-group`,
     REFRESH: `${BASE}/auth/refresh`,
   },
   COLLECTORS: {
@@ -68,6 +69,16 @@ export const API = {
     GOALS: `${BASE}/viral/goals`,
     GOAL: (id: string) => `${BASE}/viral/goals/${id}`,
     LEADERBOARD: `${BASE}/viral/leaderboard`,
+  },
+  ANNOUNCEMENTS: {
+    LIST: `${BASE}/announcements`,
+    CREATE: `${BASE}/announcements`,
+    UPDATE: (id: string) => `${BASE}/announcements/${id}`,
+    DELETE: (id: string) => `${BASE}/announcements/${id}`,
+    FEED: `${BASE}/announcements/feed`,
+    RATE: `${BASE}/announcements/ratings`,
+    RATINGS: `${BASE}/announcements/ratings`,
+    COLLECTOR_RATINGS: (id: string) => `${BASE}/announcements/ratings/${id}`,
   },
   HEALTH: `${BASE}/health`,
 } as const;

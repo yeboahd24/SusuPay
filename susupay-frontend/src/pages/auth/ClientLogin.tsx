@@ -8,9 +8,10 @@ import { Button } from '../../components/ui/Button';
 import { PhoneInput, isValidGhanaPhone } from '../../components/ui/PhoneInput';
 import { OtpInput } from '../../components/ui/OtpInput';
 import type { OTPSendRequest, OTPSendResponse, ClientLoginRequest, TokenResponse } from '../../types/auth';
+import type { ClientGroupOption, MultiGroupResponse } from '../../types/announcement';
 import { AxiosError } from 'axios';
 
-type Step = 'phone' | 'otp';
+type Step = 'phone' | 'otp' | 'group-select';
 
 export function ClientLogin() {
   const navigate = useNavigate();
@@ -24,6 +25,8 @@ export function ClientLogin() {
   const [error, setError] = useState('');
   const [showJoin, setShowJoin] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+  const [groups, setGroups] = useState<ClientGroupOption[]>([]);
+  const [selectionToken, setSelectionToken] = useState('');
 
   const handleSendOtp = async (e: FormEvent) => {
     e.preventDefault();
@@ -63,9 +66,17 @@ export function ClientLogin() {
     setLoading(true);
     try {
       const payload: ClientLoginRequest = { phone, code: otp };
-      const { data } = await api.post<TokenResponse>(API.AUTH.CLIENT_LOGIN, payload);
-      login(data.access_token, data.refresh_token);
-      navigate('/client/dashboard', { replace: true });
+      const { data } = await api.post<TokenResponse | MultiGroupResponse>(API.AUTH.CLIENT_LOGIN, payload);
+      if ('requires_group_selection' in data && data.requires_group_selection) {
+        // Multi-group: show group picker
+        setGroups(data.groups);
+        setSelectionToken(data.selection_token);
+        setStep('group-select');
+      } else {
+        const tokenData = data as TokenResponse;
+        login(tokenData.access_token, tokenData.refresh_token);
+        navigate('/client/dashboard', { replace: true });
+      }
     } catch (err) {
       if (err instanceof AxiosError && err.response?.data?.detail) {
         setError(err.response.data.detail);
@@ -120,6 +131,49 @@ export function ClientLogin() {
               Change phone number
             </button>
           </form>
+        )}
+
+        {step === 'group-select' && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 text-center">
+              You belong to multiple susu groups. Choose one to continue:
+            </p>
+            <div className="space-y-2">
+              {groups.map((g) => (
+                <button
+                  key={g.client_id}
+                  onClick={async () => {
+                    setLoading(true);
+                    setError('');
+                    try {
+                      const { data } = await api.post<TokenResponse>(
+                        API.AUTH.CLIENT_SELECT_GROUP,
+                        null,
+                        { params: { client_id: g.client_id, selection_token: selectionToken } },
+                      );
+                      login(data.access_token, data.refresh_token);
+                      navigate('/client/dashboard', { replace: true });
+                    } catch (err) {
+                      if (err instanceof AxiosError && err.response?.data?.detail) {
+                        setError(err.response.data.detail);
+                      } else {
+                        setError('Failed to select group.');
+                      }
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="w-full bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-primary-300 hover:bg-primary-50/30 transition-colors"
+                >
+                  <p className="font-semibold text-gray-900">{g.collector_name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Code: {g.group_invite_code}</p>
+                </button>
+              ))}
+            </div>
+            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            {loading && <p className="text-sm text-gray-500 text-center">Signing in...</p>}
+          </div>
         )}
 
         {/* Join with invite code */}
