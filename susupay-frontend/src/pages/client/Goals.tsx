@@ -115,7 +115,7 @@ export function Goals() {
       )}
 
       {/* Create goal modal */}
-      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="New Savings Goal">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Savings Goal">
         <div className="space-y-4">
           <Input
             label="Goal name"

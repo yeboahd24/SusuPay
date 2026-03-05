@@ -3,7 +3,7 @@ import api from '../api/axios';
 import { API } from '../api/endpoints';
 import type { CollectorProfile, CollectorUpdateRequest, CollectorDashboard, RotationScheduleResponse, RotationOrderRequest } from '../types/collector';
 import type { ClientListItem, ClientUpdateRequest } from '../types/client';
-import type { CollectorAnalytics } from '../types/analytics';
+import type { CollectorAnalytics, ActivityHeatmap } from '../types/analytics';
 import type { PayoutListItem, PayoutDeclineRequest } from '../types/payout';
 
 export function useDashboard() {
@@ -171,6 +171,16 @@ export function useCollectorAnalytics() {
     queryKey: ['collector-analytics'],
     queryFn: async () => {
       const { data } = await api.get(API.COLLECTORS.ANALYTICS);
+      return data;
+    },
+  });
+}
+
+export function useActivityHeatmap() {
+  return useQuery<ActivityHeatmap>({
+    queryKey: ['activity-heatmap'],
+    queryFn: async () => {
+      const { data } = await api.get(API.COLLECTORS.HEATMAP);
       return data;
     },
   });

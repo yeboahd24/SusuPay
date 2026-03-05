@@ -190,6 +190,40 @@ async def notify_payout_declined(
     )
 
 
+async def notify_payout_reminder(
+    client_push_token: str | None,
+    client_phone: str,
+    days_until: int,
+    payout_date: str,
+) -> str:
+    if days_until == 0:
+        body = f"Your payout is scheduled for today ({payout_date})!"
+    elif days_until == 1:
+        body = f"Your payout is tomorrow ({payout_date}). Keep contributing!"
+    else:
+        body = f"Your payout is in {days_until} days ({payout_date}). Stay on track!"
+    return await notify(
+        client_push_token,
+        client_phone,
+        "Payout Reminder",
+        body,
+    )
+
+
+async def notify_streak(
+    client_push_token: str | None,
+    client_phone: str,
+    streak: int,
+    message: str,
+) -> str:
+    return await notify(
+        client_push_token,
+        client_phone,
+        f"Streak: {streak}",
+        message,
+    )
+
+
 async def notify_daily_reminder(
     client_push_token: str | None,
     client_phone: str,

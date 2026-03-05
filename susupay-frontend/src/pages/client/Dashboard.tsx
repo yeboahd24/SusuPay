@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useClientBalance, useMyTransactions, useGroupMembers, useMySchedule, useClientAnalytics } from '../../hooks/useClient';
 import { Badge, statusBadgeColor } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 export function ClientDashboard() {
+  const { t } = useTranslation();
   const balance = useClientBalance();
   const transactions = useMyTransactions();
   const group = useGroupMembers();
@@ -57,9 +59,9 @@ export function ClientDashboard() {
             />
           </div>
           <p className="text-sm text-gray-700">
-            GHS {periodPaid.toFixed(2)} of GHS {periodExpected.toFixed(2)}
+            GHS {periodPaid.toFixed(2)} / GHS {periodExpected.toFixed(2)}
             {periodRemaining > 0 && (
-              <span className="text-gray-500"> — GHS {periodRemaining.toFixed(2)} remaining</span>
+              <span className="text-gray-500"> — GHS {periodRemaining.toFixed(2)} {t('common.remaining')}</span>
             )}
           </p>
         </div>
@@ -67,31 +69,59 @@ export function ClientDashboard() {
 
       {/* Balance card */}
       <div className="bg-primary-50 rounded-xl border border-primary-200 p-6 text-center">
-        <p className="text-sm text-primary-600 font-medium">Your Balance</p>
+        <p className="text-sm text-primary-600 font-medium">{t('client.dashboard.yourBalance')}</p>
         <p className="text-3xl font-bold text-primary-800 mt-1">
           GHS {balance.data?.balance ?? '0.00'}
         </p>
         <div className="flex justify-center gap-6 mt-3 text-xs text-primary-600">
-          <span>Deposits: GHS {balance.data?.total_deposits ?? '0.00'}</span>
-          <span>Payouts: GHS {balance.data?.total_payouts ?? '0.00'}</span>
+          <span>{t('client.dashboard.deposits')}: GHS {balance.data?.total_deposits ?? '0.00'}</span>
+          <span>{t('client.dashboard.payouts')}: GHS {balance.data?.total_payouts ?? '0.00'}</span>
         </div>
       </div>
 
       {/* Streak + monthly compliance + group progress */}
       {ana && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
-            <p className="text-2xl font-bold text-primary-600">{ana.payment_streak}</p>
-            <p className="text-xs text-gray-500">Streak</p>
+          {/* Streak card with visual flair */}
+          <div className={`rounded-xl border p-3 text-center ${
+            ana.payment_streak >= 7
+              ? 'bg-orange-50 border-orange-200'
+              : ana.payment_streak >= 3
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-white border-gray-200'
+          }`}>
+            <p className={`text-2xl font-bold ${
+              ana.payment_streak >= 7 ? 'text-orange-600' :
+              ana.payment_streak >= 3 ? 'text-amber-600' :
+              'text-primary-600'
+            }`}>
+              {ana.payment_streak}
+            </p>
+            <p className="text-xs text-gray-500">{t('client.dashboard.streak')}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
             <p className="text-2xl font-bold text-gray-900">{ana.monthly_compliance.toFixed(0)}%</p>
-            <p className="text-xs text-gray-500">Monthly</p>
+            <p className="text-xs text-gray-500">{t('client.dashboard.monthly')}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
             <p className="text-2xl font-bold text-gray-900">{ana.group_paid_count}/{ana.group_total_count}</p>
-            <p className="text-xs text-gray-500">Group Paid</p>
+            <p className="text-xs text-gray-500">{t('client.dashboard.groupPaid')}</p>
           </div>
+        </div>
+      )}
+
+      {/* Streak message */}
+      {ana && ana.streak_message && (
+        <div className={`rounded-lg px-4 py-3 text-sm font-medium text-center ${
+          ana.payment_streak >= 7
+            ? 'bg-orange-50 text-orange-700 border border-orange-200'
+            : ana.payment_streak >= 3
+            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+            : ana.payment_streak > 0
+            ? 'bg-green-50 text-green-700 border border-green-200'
+            : 'bg-gray-50 text-gray-600 border border-gray-200'
+        }`}>
+          {ana.streak_message}
         </div>
       )}
 
@@ -102,7 +132,7 @@ export function ClientDashboard() {
           className="block bg-white rounded-xl border border-accent-200 p-4 hover:border-accent-300 transition-colors"
         >
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-accent-700">Payout Schedule</p>
+            <p className="text-sm font-medium text-accent-700">{t('client.dashboard.payoutSchedule')}</p>
             <svg className="w-4 h-4 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
@@ -122,8 +152,8 @@ export function ClientDashboard() {
                 {schedule.data.days_until_my_payout !== null && schedule.data.days_until_my_payout >= 0 && (
                   <p className="text-xs text-accent-600">
                     {schedule.data.days_until_my_payout === 0
-                      ? 'Today!'
-                      : `${schedule.data.days_until_my_payout} day${schedule.data.days_until_my_payout === 1 ? '' : 's'} away`}
+                      ? t('common.today') + '!'
+                      : t('client.dashboard.daysAway', { count: schedule.data.days_until_my_payout })}
                   </p>
                 )}
               </div>
@@ -146,7 +176,7 @@ export function ClientDashboard() {
           <svg className="w-8 h-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          <p className="text-sm font-medium text-gray-900">Submit Payment</p>
+          <p className="text-sm font-medium text-gray-900">{t('client.dashboard.submitPayment')}</p>
         </Link>
         <Link
           to="/client/payouts"
@@ -155,7 +185,7 @@ export function ClientDashboard() {
           <svg className="w-8 h-8 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
           </svg>
-          <p className="text-sm font-medium text-gray-900">Request Payout</p>
+          <p className="text-sm font-medium text-gray-900">{t('client.dashboard.requestPayout')}</p>
         </Link>
       </div>
 
@@ -192,18 +222,18 @@ export function ClientDashboard() {
 
       {/* Group members */}
       <div>
-        <h2 className="text-base font-semibold text-gray-900 mb-3">Group Members</h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-3">{t('client.dashboard.groupMembers')}</h2>
         {group.isLoading ? (
           <LoadingSpinner className="mt-4" size="sm" />
         ) : members.length === 0 ? (
-          <p className="text-sm text-gray-500">No group members yet.</p>
+          <p className="text-sm text-gray-500">{t('client.dashboard.noMembers')}</p>
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {/* Header */}
             <div className="grid grid-cols-[1fr_auto_auto_20px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500">
-              <span>Name</span>
-              <span className="text-right">Period</span>
-              <span className="text-right">Balance</span>
+              <span>{t('client.dashboard.name')}</span>
+              <span className="text-right">{t('client.dashboard.period')}</span>
+              <span className="text-right">{t('client.dashboard.balance')}</span>
               <span />
             </div>
             {/* Rows */}
@@ -230,7 +260,7 @@ export function ClientDashboard() {
                     ? 'text-amber-600'
                     : 'text-red-500'
                 }`}>
-                  {m.period_status === 'PAID' || m.period_status === 'OVERPAID' ? 'Paid' : m.period_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}
+                  {m.period_status === 'PAID' || m.period_status === 'OVERPAID' ? t('collector.dashboard.paid') : m.period_status === 'PARTIAL' ? t('collector.dashboard.partial') : t('collector.dashboard.unpaid')}
                 </span>
                 <span className="text-sm font-medium text-gray-900 text-right">GHS {m.balance}</span>
                 <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -245,10 +275,10 @@ export function ClientDashboard() {
       {/* Recent transactions */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-gray-900">Recent Transactions</h2>
+          <h2 className="text-base font-semibold text-gray-900">{t('client.dashboard.recentTransactions')}</h2>
           {recent.length > 0 && (
             <Link to="/client/history" className="text-sm text-primary-600 font-medium">
-              View All
+              {t('common.viewAll')}
             </Link>
           )}
         </div>
@@ -262,8 +292,8 @@ export function ClientDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
               </svg>
             }
-            title="No transactions yet"
-            subtitle="Submit a payment to get started"
+            title={t('client.dashboard.noTransactions')}
+            subtitle={t('client.dashboard.noTransactionsDesc')}
           />
         ) : (
           <div className="space-y-2">

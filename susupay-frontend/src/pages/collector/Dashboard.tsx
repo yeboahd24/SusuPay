@@ -1,15 +1,20 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDashboard, useCollectorAnalytics } from '../../hooks/useCollector';
+import { useTranslation } from 'react-i18next';
+import { useDashboard, useCollectorAnalytics, useActivityHeatmap } from '../../hooks/useCollector';
 import { useTransactionFeed } from '../../hooks/useTransactions';
 import { TransactionCard } from '../../components/transaction/TransactionCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Button } from '../../components/ui/Button';
+import { CollectionTrendChart } from '../../components/charts/CollectionTrendChart';
+import { ActivityHeatmap } from '../../components/charts/ActivityHeatmap';
 
 export function CollectorDashboard() {
+  const { t } = useTranslation();
   const dashboard = useDashboard();
   const analytics = useCollectorAnalytics();
+  const heatmap = useActivityHeatmap();
   const feed = useTransactionFeed();
   const [showDefaulters, setShowDefaulters] = useState(false);
 
@@ -30,7 +35,7 @@ export function CollectorDashboard() {
       {/* Period progress bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-sm font-medium text-gray-700">{stats?.period_label || 'Today'}</p>
+          <p className="text-sm font-medium text-gray-700">{stats?.period_label || t('common.today')}</p>
           <p className="text-sm text-gray-500">{stats?.collection_rate?.toFixed(1) ?? 0}%</p>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-3 mb-2">
@@ -42,26 +47,26 @@ export function CollectorDashboard() {
           />
         </div>
         <p className="text-sm text-gray-600">
-          GHS {collected.toFixed(2)} / GHS {expected.toFixed(2)} collected
+          GHS {collected.toFixed(2)} / GHS {expected.toFixed(2)} {t('collector.dashboard.collected')}
         </p>
       </div>
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Total Clients</p>
+          <p className="text-sm text-gray-500">{t('collector.dashboard.totalClients')}</p>
           <p className="text-2xl font-bold text-gray-900">{stats?.total_clients ?? 0}</p>
-          <p className="text-xs text-gray-400">{stats?.active_clients ?? 0} active</p>
+          <p className="text-xs text-gray-400">{stats?.active_clients ?? 0} {t('collector.dashboard.active')}</p>
         </div>
         <div className={`bg-white rounded-xl border p-4 ${stats?.pending_transactions ? 'border-amber-200 bg-amber-50' : 'border-gray-200'}`}>
-          <p className="text-sm text-gray-500">Pending</p>
+          <p className="text-sm text-gray-500">{t('collector.dashboard.pending')}</p>
           <p className={`text-2xl font-bold ${stats?.pending_transactions ? 'text-amber-600' : 'text-gray-900'}`}>
             {stats?.pending_transactions ?? 0}
           </p>
-          <p className="text-xs text-gray-400">transactions</p>
+          <p className="text-xs text-gray-400">{t('collector.dashboard.pendingTxns')}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Collection Rate</p>
+          <p className="text-sm text-gray-500">{t('collector.dashboard.collectionRate')}</p>
           <p className={`text-2xl font-bold ${
             (stats?.collection_rate ?? 0) >= 75 ? 'text-green-600' : (stats?.collection_rate ?? 0) >= 40 ? 'text-amber-600' : 'text-red-600'
           }`}>
@@ -73,7 +78,7 @@ export function CollectorDashboard() {
             to="/collector/schedule"
             className="bg-accent-50 rounded-xl border border-accent-200 p-4 hover:bg-accent-100 transition-colors"
           >
-            <p className="text-sm text-accent-600">Next Payout</p>
+            <p className="text-sm text-accent-600">{t('collector.dashboard.nextPayout')}</p>
             <p className="text-base font-bold text-accent-800 truncate">{stats.next_payout_client}</p>
             <p className="text-xs text-accent-500">
               {stats.next_payout_date
@@ -89,26 +94,26 @@ export function CollectorDashboard() {
             <svg className="w-6 h-6 text-primary-600 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            <p className="text-sm font-medium text-primary-700">Submit SMS</p>
+            <p className="text-sm font-medium text-primary-700">{t('collector.dashboard.submitSms')}</p>
           </Link>
         )}
       </div>
 
       {/* Payment status breakdown */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Payment Status</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('collector.dashboard.paymentStatus')}</h3>
         <div className="flex gap-3">
           <div className="flex-1 text-center py-2 bg-green-50 rounded-lg">
             <p className="text-xl font-bold text-green-600">{stats?.paid_count ?? 0}</p>
-            <p className="text-xs text-green-700">Paid</p>
+            <p className="text-xs text-green-700">{t('collector.dashboard.paid')}</p>
           </div>
           <div className="flex-1 text-center py-2 bg-amber-50 rounded-lg">
             <p className="text-xl font-bold text-amber-600">{stats?.partial_count ?? 0}</p>
-            <p className="text-xs text-amber-700">Partial</p>
+            <p className="text-xs text-amber-700">{t('collector.dashboard.partial')}</p>
           </div>
           <div className="flex-1 text-center py-2 bg-red-50 rounded-lg">
             <p className="text-xl font-bold text-red-600">{stats?.unpaid_count ?? 0}</p>
-            <p className="text-xs text-red-700">Unpaid</p>
+            <p className="text-xs text-red-700">{t('collector.dashboard.unpaid')}</p>
           </div>
         </div>
       </div>
@@ -122,9 +127,9 @@ export function CollectorDashboard() {
           >
             <div>
               <h3 className="text-sm font-semibold text-red-700">
-                Unpaid / Partial ({ana.defaulters.length + ana.partial_payers.length})
+                {t('collector.dashboard.unpaidPartial')} ({ana.defaulters.length + ana.partial_payers.length})
               </h3>
-              <p className="text-xs text-gray-500">Members who haven't fully paid this period</p>
+              <p className="text-xs text-gray-500">{t('collector.dashboard.unpaidPartialDesc')}</p>
             </div>
             <svg
               className={`w-5 h-5 text-gray-400 transition-transform ${showDefaulters ? 'rotate-180' : ''}`}
@@ -139,10 +144,10 @@ export function CollectorDashboard() {
                 <div key={d.client_id} className="flex items-center justify-between py-2 border-t border-gray-100">
                   <div>
                     <p className="text-sm font-medium text-gray-900">{d.full_name}</p>
-                    <p className="text-xs text-red-600">Unpaid</p>
+                    <p className="text-xs text-red-600">{t('collector.dashboard.unpaid')}</p>
                   </div>
                   <p className="text-sm font-medium text-red-600">
-                    GHS {parseFloat(d.remaining).toFixed(2)} remaining
+                    GHS {parseFloat(d.remaining).toFixed(2)} {t('common.remaining')}
                   </p>
                 </div>
               ))}
@@ -151,11 +156,11 @@ export function CollectorDashboard() {
                   <div>
                     <p className="text-sm font-medium text-gray-900">{d.full_name}</p>
                     <p className="text-xs text-amber-600">
-                      Paid GHS {parseFloat(d.paid).toFixed(2)} of GHS {parseFloat(d.expected).toFixed(2)}
+                      {t('collector.dashboard.paid')} GHS {parseFloat(d.paid).toFixed(2)} / GHS {parseFloat(d.expected).toFixed(2)}
                     </p>
                   </div>
                   <p className="text-sm font-medium text-amber-600">
-                    GHS {parseFloat(d.remaining).toFixed(2)} remaining
+                    GHS {parseFloat(d.remaining).toFixed(2)} {t('common.remaining')}
                   </p>
                 </div>
               ))}
@@ -164,33 +169,23 @@ export function CollectorDashboard() {
         </div>
       )}
 
-      {/* 30-day trend */}
+      {/* 30-day collection trend chart */}
       {ana && ana.daily_trend.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Last 30 Days</h3>
-          <div className="flex items-end gap-px h-24">
-            {(() => {
-              const maxAmt = Math.max(...ana.daily_trend.map(d => parseFloat(d.amount)), 1);
-              return ana.daily_trend.map((d, i) => {
-                const pct = (parseFloat(d.amount) / maxAmt) * 100;
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 bg-primary-400 rounded-t hover:bg-primary-600 transition-colors"
-                    style={{ height: `${Math.max(pct, 2)}%` }}
-                    title={`${d.date}: GHS ${parseFloat(d.amount).toFixed(2)}`}
-                  />
-                );
-              });
-            })()}
-          </div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('collector.dashboard.collectionTrend')}</h3>
+          <CollectionTrendChart data={ana.daily_trend} />
         </div>
+      )}
+
+      {/* Client activity heatmap */}
+      {heatmap.data && heatmap.data.clients.length > 0 && (
+        <ActivityHeatmap dates={heatmap.data.dates} clients={heatmap.data.clients} />
       )}
 
       {/* Trust distribution */}
       {ana && (ana.trust_distribution.high + ana.trust_distribution.medium + ana.trust_distribution.low > 0) && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Trust Distribution (MTD)</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('collector.dashboard.trustDistribution')}</h3>
           {(() => {
             const total = ana.trust_distribution.high + ana.trust_distribution.medium + ana.trust_distribution.low;
             const highPct = (ana.trust_distribution.high / total) * 100;
@@ -217,7 +212,7 @@ export function CollectorDashboard() {
       {/* Top contributors */}
       {ana && ana.top_contributors.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Top Contributors (MTD)</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('collector.dashboard.topContributors')}</h3>
           <div className="space-y-2">
             {ana.top_contributors.map((c, i) => (
               <div key={c.client_id} className="flex items-center justify-between">
@@ -253,11 +248,11 @@ export function CollectorDashboard() {
             </span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-700">Group Health</p>
+            <p className="text-sm font-semibold text-gray-700">{t('collector.dashboard.groupHealth')}</p>
             <p className="text-xs text-gray-500">
-              {ana.group_health_score >= 70 ? 'Great — keep it up!' :
-               ana.group_health_score >= 40 ? 'Fair — room for improvement' :
-               'Needs attention'}
+              {ana.group_health_score >= 70 ? t('collector.dashboard.healthGreat') :
+               ana.group_health_score >= 40 ? t('collector.dashboard.healthFair') :
+               t('collector.dashboard.healthLow')}
             </p>
           </div>
         </div>
@@ -266,10 +261,10 @@ export function CollectorDashboard() {
       {/* Pending transactions feed */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-gray-900">Recent Pending</h2>
+          <h2 className="text-base font-semibold text-gray-900">{t('collector.dashboard.recentPending')}</h2>
           {pending.length > 0 && (
             <Link to="/collector/transactions" className="text-sm text-primary-600 font-medium">
-              View All
+              {t('common.viewAll')}
             </Link>
           )}
         </div>
@@ -283,8 +278,8 @@ export function CollectorDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
-            title="All caught up!"
-            subtitle="No pending transactions to review"
+            title={t('collector.dashboard.allCaughtUp')}
+            subtitle={t('collector.dashboard.noPendingTxns')}
           />
         ) : (
           <div className="space-y-3">
@@ -297,9 +292,9 @@ export function CollectorDashboard() {
 
       {dashboard.isError && (
         <div className="text-center">
-          <p className="text-sm text-red-600 mb-2">Failed to load dashboard</p>
+          <p className="text-sm text-red-600 mb-2">{t('collector.dashboard.failedLoad')}</p>
           <Button size="sm" variant="secondary" onClick={() => dashboard.refetch()}>
-            Retry
+            {t('common.retry')}
           </Button>
         </div>
       )}

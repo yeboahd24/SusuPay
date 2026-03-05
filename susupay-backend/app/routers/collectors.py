@@ -10,7 +10,7 @@ from app.dependencies import get_current_collector
 from app.models.client import Client
 from app.models.collector import Collector
 from app.models.transaction import Transaction
-from app.schemas.analytics import CollectorAnalytics
+from app.schemas.analytics import ActivityHeatmap, CollectorAnalytics
 from app.schemas.client import ClientListItem
 from app.schemas.collector import (
     CollectorDashboard,
@@ -214,6 +214,16 @@ async def get_analytics(
     from app.services.analytics_service import get_collector_analytics
 
     return await get_collector_analytics(db, collector)
+
+
+@router.get("/me/analytics/heatmap", response_model=ActivityHeatmap)
+async def get_activity_heatmap(
+    collector: Collector = Depends(get_current_collector),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.analytics_service import get_activity_heatmap as _heatmap
+
+    return await _heatmap(db, collector.id)
 
 
 @router.get("/me/schedule", response_model=RotationScheduleResponse)

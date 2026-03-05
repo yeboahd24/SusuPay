@@ -40,7 +40,7 @@ export function Clients() {
           </div>
           <div className="flex items-center gap-2">
             <a
-              href={`https://wa.me/?text=${encodeURIComponent(`Join my susu group on SusuPay! Use invite code: ${profile.invite_code}\n\nhttps://susupay.app/join/${profile.invite_code}`)}`}
+              href={`https://wa.me/?text=${encodeURIComponent(`Join my susu group on SusuPay! Use invite code: ${profile.invite_code}\n\n${window.location.origin}/join/${profile.invite_code}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-sm font-medium text-white px-3 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#20bd5a]"

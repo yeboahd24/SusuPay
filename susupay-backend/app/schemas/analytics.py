@@ -78,6 +78,7 @@ class ClientAnalytics(BaseModel):
 
     # Payment streak
     payment_streak: int
+    streak_message: str = ""
 
     # Monthly summary
     monthly_deposits: Decimal
@@ -87,3 +88,21 @@ class ClientAnalytics(BaseModel):
     # Group progress
     group_paid_count: int
     group_total_count: int
+
+
+class ClientActivityDay(BaseModel):
+    date: date
+    paid: bool
+
+
+class ClientActivityRow(BaseModel):
+    client_id: uuid.UUID
+    full_name: str
+    days: list[ClientActivityDay]
+    paid_count: int
+    total_days: int
+
+
+class ActivityHeatmap(BaseModel):
+    dates: list[date]
+    clients: list[ClientActivityRow]

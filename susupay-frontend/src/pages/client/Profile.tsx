@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import type { AxiosError } from 'axios';
 
 export function ClientProfile() {
@@ -106,6 +107,9 @@ export function ClientProfile() {
           </div>
         </div>
       )}
+
+      {/* Language selector */}
+      <LanguageSelector />
 
       <Button variant="secondary" fullWidth onClick={logout}>
         Sign Out

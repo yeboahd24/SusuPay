@@ -22,6 +22,7 @@ export const API = {
     CLIENT: (id: string) => `${BASE}/collectors/me/clients/${id}`,
     SCHEDULE: `${BASE}/collectors/me/schedule`,
     ANALYTICS: `${BASE}/collectors/me/analytics`,
+    HEATMAP: `${BASE}/collectors/me/analytics/heatmap`,
   },
   CLIENTS: {
     ME: `${BASE}/clients/me`,

@@ -16,6 +16,10 @@ celery.conf.update(
             "task": "app.workers.tasks.daily_reminder_task",
             "schedule": crontab(hour=8, minute=0),
         },
+        "payout-reminders-9am": {
+            "task": "app.workers.tasks.payout_reminder_task",
+            "schedule": crontab(hour=9, minute=0),
+        },
     },
     task_routes={
         "app.workers.tasks.*": {"queue": "default"},

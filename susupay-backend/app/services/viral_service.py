@@ -438,7 +438,10 @@ async def get_group_leaderboard(
 
 def generate_share_links(invite_code: str, collector_name: str) -> dict:
     """Generate invite URL and WhatsApp share link."""
-    invite_url = f"https://susupay.app/join/{invite_code}"
+    from app.config import settings
+
+    base = settings.FRONTEND_URL.rstrip("/")
+    invite_url = f"{base}/join/{invite_code}"
     message = (
         f"Join my susu group on SusuPay! "
         f"I'm {collector_name} and I use SusuPay to manage our savings group digitally. "

@@ -57,9 +57,28 @@ export interface ClientPeriodStatus {
 export interface ClientAnalytics {
   period_status: ClientPeriodStatus;
   payment_streak: number;
+  streak_message: string;
   monthly_deposits: string;
   monthly_expected: string;
   monthly_compliance: number;
   group_paid_count: number;
   group_total_count: number;
+}
+
+export interface ClientActivityDay {
+  date: string;
+  paid: boolean;
+}
+
+export interface ClientActivityRow {
+  client_id: string;
+  full_name: string;
+  days: ClientActivityDay[];
+  paid_count: number;
+  total_days: number;
+}
+
+export interface ActivityHeatmap {
+  dates: string[];
+  clients: ClientActivityRow[];
 }

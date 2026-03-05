@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { LanguageSelector } from '../../components/ui/LanguageSelector';
 import type { AxiosError } from 'axios';
 
 export function Profile() {
@@ -176,7 +177,7 @@ export function Profile() {
         </div>
         <div className="flex gap-2 mt-3">
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(`Join my susu group on SusuPay! Use invite code: ${profile.invite_code}\n\nhttps://susupay.app/join/${profile.invite_code}`)}`}
+            href={`https://wa.me/?text=${encodeURIComponent(`Join my susu group on SusuPay! Use invite code: ${profile.invite_code}\n\n${window.location.origin}/join/${profile.invite_code}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-white bg-[#25D366] rounded-lg hover:bg-[#20bd5a]"
@@ -223,6 +224,9 @@ export function Profile() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
       </button>
+
+      {/* Language selector */}
+      <LanguageSelector />
 
       {/* Sign out */}
       <Button variant="secondary" fullWidth onClick={logout}>

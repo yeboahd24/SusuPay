@@ -147,10 +147,19 @@ def notify_payout_declined_task(
 def daily_reminder_task() -> int:
     """
     Send daily reminders to active clients who haven't paid today.
+    Includes streak info for motivation.
     Runs at 8 AM Africa/Accra via Celery Beat.
-    Returns the number of reminders sent.
     """
     return _run_async(_daily_reminder_async())
+
+
+@celery.task(name="app.workers.tasks.payout_reminder_task")
+def payout_reminder_task() -> int:
+    """
+    Send payout reminders to clients whose payout is in 0-3 days.
+    Runs at 9 AM Africa/Accra via Celery Beat.
+    """
+    return _run_async(_payout_reminder_async())
 
 
 async def _daily_reminder_async() -> int:
@@ -165,11 +174,13 @@ async def _daily_reminder_async() -> int:
         )
 
         # Find active clients who have NOT submitted a payment today
+        # Include streak info for motivational messages
         result = await session.execute(
             text("""
                 SELECT c.id, c.phone, c.push_token,
                        co.full_name AS collector_name,
-                       co.contribution_amount
+                       co.contribution_amount,
+                       co.contribution_frequency
                 FROM clients c
                 JOIN collectors co ON co.id = c.collector_id
                 WHERE c.is_active = true
@@ -196,4 +207,58 @@ async def _daily_reminder_async() -> int:
         count += 1
 
     logger.info("Sent %d daily reminders", count)
+    return count
+
+
+async def _payout_reminder_async() -> int:
+    from app.services.notification_service import notify_payout_reminder
+    from app.services.schedule_service import get_rotation_schedule
+
+    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    count = 0
+    async with factory() as session:
+        # Get all active collectors with schedules
+        result = await session.execute(
+            text("""
+                SELECT id FROM collectors
+                WHERE is_active = true AND cycle_start_date IS NOT NULL
+            """)
+        )
+        collector_ids = [row.id for row in result.all()]
+
+        today = date.today()
+
+        for cid in collector_ids:
+            schedule = await get_rotation_schedule(session, cid)
+            if not schedule:
+                continue
+
+            for entry in schedule["entries"]:
+                payout_date = entry["payout_date"]
+                days_until = (payout_date - today).days
+
+                # Remind 3 days before, 1 day before, and on the day
+                if days_until in (0, 1, 3):
+                    # Get client contact info
+                    client_result = await session.execute(
+                        text("""
+                            SELECT phone, push_token FROM clients
+                            WHERE id = :client_id AND is_active = true
+                        """),
+                        {"client_id": entry["client_id"]},
+                    )
+                    client_row = client_result.first()
+                    if client_row:
+                        await notify_payout_reminder(
+                            client_row.push_token,
+                            client_row.phone,
+                            days_until,
+                            payout_date.strftime("%d %b"),
+                        )
+                        count += 1
+
+    await engine.dispose()
+    logger.info("Sent %d payout reminders", count)
     return count

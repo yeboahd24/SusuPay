@@ -248,6 +248,83 @@ async def get_collector_analytics(db: AsyncSession, collector: Collector) -> dic
     }
 
 
+async def get_activity_heatmap(
+    db: AsyncSession, collector_id: uuid.UUID, days: int = 30
+) -> dict:
+    """Return a per-client daily activity grid for the last N days."""
+    today = date.today()
+    start_date = today - timedelta(days=days - 1)
+    start_dt = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+
+    # Active clients
+    result = await db.execute(
+        select(Client.id, Client.full_name).where(
+            Client.collector_id == collector_id,
+            Client.is_active == True,  # noqa: E712
+        ).order_by(Client.full_name)
+    )
+    clients = result.all()
+
+    # Confirmed transactions per client per day
+    txn_result = await db.execute(
+        text("""
+            SELECT client_id, DATE(confirmed_at AT TIME ZONE 'UTC') AS d
+            FROM transactions
+            WHERE collector_id = :cid AND status = 'CONFIRMED'
+              AND confirmed_at >= :start
+            GROUP BY client_id, d
+        """),
+        {"cid": collector_id, "start": start_dt},
+    )
+    # Build set of (client_id, date) pairs
+    paid_set: set[tuple] = set()
+    for row in txn_result.all():
+        paid_set.add((row.client_id, row.d))
+
+    date_list = [start_date + timedelta(days=i) for i in range(days)]
+
+    client_rows = []
+    for c in clients:
+        days_data = []
+        paid_count = 0
+        for d in date_list:
+            paid = (c.id, d) in paid_set
+            if paid:
+                paid_count += 1
+            days_data.append({"date": d, "paid": paid})
+        client_rows.append({
+            "client_id": c.id,
+            "full_name": c.full_name,
+            "days": days_data,
+            "paid_count": paid_count,
+            "total_days": days,
+        })
+
+    return {
+        "dates": date_list,
+        "clients": client_rows,
+    }
+
+
+def get_streak_message(streak: int, frequency: str) -> str:
+    """Return a motivational message based on streak length."""
+    unit = "day" if frequency == "DAILY" else "week" if frequency == "WEEKLY" else "month"
+    units = unit + "s" if streak != 1 else unit
+
+    if streak == 0:
+        return "Start your streak today!"
+    elif streak < 3:
+        return f"{streak} {units} strong! Keep it going!"
+    elif streak < 7:
+        return f"{streak} {units} in a row! You're building momentum!"
+    elif streak < 14:
+        return f"{streak} {units} streak! You're on fire!"
+    elif streak < 30:
+        return f"{streak} {units} streak! Incredible consistency!"
+    else:
+        return f"{streak} {units} streak! You're a savings champion!"
+
+
 async def get_client_analytics(db: AsyncSession, client: Client) -> dict:
     """Analytics for a single client."""
     # Get collector for contribution settings
@@ -361,6 +438,7 @@ async def get_client_analytics(db: AsyncSession, client: Client) -> dict:
     return {
         "period_status": period_status,
         "payment_streak": streak,
+        "streak_message": get_streak_message(streak, frequency),
         "monthly_deposits": monthly_deposits,
         "monthly_expected": monthly_expected,
         "monthly_compliance": round(monthly_compliance, 1),
