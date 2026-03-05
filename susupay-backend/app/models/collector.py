@@ -19,6 +19,7 @@ class Collector(Base):
     momo_number: Mapped[str | None] = mapped_column(String(15))
     pin_hash: Mapped[str | None] = mapped_column(String(255))
     invite_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    referral_code: Mapped[str | None] = mapped_column(String(50), unique=True)
     push_token: Mapped[str | None] = mapped_column(String(500))
     cycle_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     payout_interval_days: Mapped[int] = mapped_column(Integer, server_default="7", nullable=False)
