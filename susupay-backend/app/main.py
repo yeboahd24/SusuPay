@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth, clients, collectors, payouts, reports, transactions, ussd
+from app.routers import auth, clients, collectors, payouts, reports, transactions, ussd, viral
 
 app = FastAPI(title="SusuPay API", version="0.1.0")
 
@@ -22,6 +22,7 @@ app.include_router(transactions.router)
 app.include_router(payouts.router)
 app.include_router(reports.router)
 app.include_router(ussd.router)
+app.include_router(viral.router)
 
 
 @app.get("/api/v1/health")

@@ -60,5 +60,13 @@ export const API = {
   USSD: {
     CALLBACK: `${BASE}/ussd/callback`,
   },
+  VIRAL: {
+    REFERRALS: `${BASE}/viral/referrals`,
+    SHARE_LINK: `${BASE}/viral/share-link`,
+    ACHIEVEMENTS: `${BASE}/viral/achievements`,
+    GOALS: `${BASE}/viral/goals`,
+    GOAL: (id: string) => `${BASE}/viral/goals/${id}`,
+    LEADERBOARD: `${BASE}/viral/leaderboard`,
+  },
   HEALTH: `${BASE}/health`,
 } as const;
